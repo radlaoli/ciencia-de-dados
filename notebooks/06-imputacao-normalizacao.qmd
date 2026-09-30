@@ -42,7 +42,7 @@ column_names = {
 ```{python}
 
 imoveis = (
-    pd.read_csv("imoveis-sao-paulo/data/imoveis_sao_paulo.csv") # carregando base de dados
+    pd.read_csv("../data/imoveis_sao_paulo.csv") # carregando base de dados
     .rename(columns=column_names)
     .drop_duplicates() # removendo duplicatas
     .reset_index(drop=True) 
@@ -56,4 +56,4 @@ imoveis = (
 )
 ```
 
-A nova coluna property_type identifica e define se é uma casa ou apartamento baseado em ter andar ou não
+A nova coluna property_type identifica e define se é uma casa ou apartamento baseado em ter andar ou não.
