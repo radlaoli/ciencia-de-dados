@@ -57,3 +57,78 @@ imoveis = (
 ```
 
 A nova coluna property_type identifica e define se é uma casa ou apartamento baseado em ter andar ou não.
+
+## Os três problemas da aula
+
+- Cálculo da porcentagem de valores ausentes em hoa, parking_spaces e floor
+```{python}
+missing = (
+    imoveis[["hoa", "parking_spaces", "floor"]]
+    .isna()
+    .mean()
+    .mul(100)
+)
+```
+
+- A mediana de rooms, area e rent_amount, cada uma em sua unidade original;
+
+```{python}
+scales = (
+    imoveis[["rooms", "area", "rent_amount"]]
+    .median()
+)
+```
+
+-  percentil 99 do aluguel, usado apenas para recortar o eixo do histograma. Sem ele, os poucos aluguéis mais altos esticariam o eixo e esconderiam a forma da distribuição.
+
+
+```{python}
+limit = imoveis["rent_amount"].quantile(.99)
+```
+
+Visualização dos três problemas
+
+```{python}
+fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+
+sns.barplot(
+    x=missing.index,
+    y=missing.values,
+    ax=axes[0],
+    color="#4C72B0",
+)
+axes[0].set(
+    title="1. Valores ausentes",
+    ylabel="Ausentes (%)",
+    xlabel="",
+)
+axes[0].tick_params(axis="x", rotation=20)
+
+sns.barplot(
+    x=scales.index,
+    y=scales.values,
+    ax=axes[1],
+    color="#55A868",
+)
+axes[1].set(
+    title="2. Escalas incompatíveis",
+    ylabel="Mediana original",
+    xlabel="",
+)
+
+sns.histplot(
+    imoveis["rent_amount"],
+    bins=50,
+    binrange=(0, limit),
+    ax=axes[2],
+    color="#C44E52",
+)
+axes[2].set(
+    title="3. Cauda longa",
+    xlabel="Aluguel (R$)",
+    ylabel="Imóveis",
+)
+
+plt.tight_layout()
+plt.show()
+```
