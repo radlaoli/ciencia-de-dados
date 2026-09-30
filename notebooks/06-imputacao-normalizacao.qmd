@@ -210,3 +210,88 @@ imoveis_missing = (
     )
 )
 ```
+
+## Média, mediana e mediana agrupada
+
+As estratégias mais simples substituem todas as lacunas por uma única constante calculada com os valores observados da coluna.
+
+
+```{python}
+# Constantes para a imputação simples
+rent_mean = (
+    imoveis_missing.rent_amount
+    .mean()
+)
+
+rent_median = (
+    imoveis_missing.rent_amount
+    .median()
+)
+```
+
+A mediana (agrupada) por tier condiciona a estimativa ao padrão do imóvel. Cada lacuna recebe a mediana calculada entre os anúncios do mesmo grupo. Se um tier não tiver aluguéis observados, não será possível calcular sua mediana. Nesse caso, a mediana global funciona como estratégia de contingência.
+
+
+```{python}
+# Imputação pela mediana de cada tier
+rent_group = (
+    imoveis_missing
+    .groupby("tier")
+    .rent_amount
+    .transform(lambda x: x.fillna(x.median()))
+    .fillna(rent_median)
+)
+```
+
+grupos sem observação recebem a mediana global
+
+Visualização das três formas de imputação apresentadas:
+
+
+```{python}
+# Versões do aluguel a comparar
+rent_versions = {
+    "Original": imoveis_true.rent_amount,
+    "Com lacunas": imoveis_missing.rent_amount,
+    "Média": imoveis_missing.rent_amount.fillna(rent_mean),
+    "Mediana": imoveis_missing.rent_amount.fillna(rent_median),
+    "Mediana por tier": rent_group,
+}
+```
+
+
+```{python}
+# Histograma de cada versão do aluguel
+fig, axes = plt.subplots(1, 5, figsize=(20, 4), sharey=True)
+
+limit = imoveis_true.rent_amount.quantile(.99)
+
+for ax, (label, values) in zip(axes, rent_versions.items()):
+    sns.histplot(
+        values.dropna(),
+        bins=50,
+        binrange=(0, limit),
+        ax=ax,
+        color="#4C72B0",
+    )
+    ax.set(
+        title=label,
+        xlabel="Aluguel (R$)",
+        ylabel="Imóveis",
+    )
+    if label == "Média":
+        ax.axvline(
+            rent_mean,
+            color="#C44E52",
+            linestyle="--",
+        )
+    if label == "Mediana":
+        ax.axvline(
+            rent_median,
+            color="#C44E52",
+            linestyle="--",
+        )
+
+plt.tight_layout()
+plt.show()
+```
