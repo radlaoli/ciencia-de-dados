@@ -26,3 +26,34 @@ from sklearn.preprocessing import (
 sns.set_theme(style="whitegrid", palette="colorblind")
 ```
 
+- Padronização dos nomes das colunas
+
+```{python}
+column_names = {
+    "parking spaces": "parking_spaces",
+    "hoa (R$)": "hoa",
+    "rent amount (R$)": "rent_amount",
+    "property tax (R$)": "property_tax",
+    "total (R$)": "total",
+}
+```
+
+
+```{python}
+
+imoveis = (
+    pd.read_csv("imoveis-sao-paulo/data/imoveis_sao_paulo.csv") # carregando base de dados
+    .rename(columns=column_names)
+    .drop_duplicates() # removendo duplicatas
+    .reset_index(drop=True) 
+    .assign( # cria nova coluna
+        property_type=lambda df: np.where(
+            df["floor"].isna(),
+            "casa",
+            "apartamento",
+        )
+    )
+)
+```
+
+A nova coluna property_type identifica e define se é uma casa ou apartamento baseado em ter andar ou não
