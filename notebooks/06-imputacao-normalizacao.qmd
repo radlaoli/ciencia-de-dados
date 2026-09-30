@@ -158,3 +158,55 @@ No caso das casas a ausência de valores nos campos que tratam de andar é estru
 ```
 
 Ou seja, de todos os apartamentos não há nenhum dado do na coluna floor faltante. Já nas casas todos são faltantes.
+
+- Imputação: o impacto das alternativas
+
+Imputar consiste em substituir um valor ausente por uma estimativa calculada a partir das informações disponíveis.
+
+- Deixando a base com valores ausentes para tentar imputar com métodos da estatistica descritiva
+
+
+```{python}
+# Função de apagamento e base-gabarito
+rng = np.random.default_rng(42)
+
+def erase_at_random(values, share):
+    return values.mask(rng.random(len(values)) < share) # o mask troca por NaN os valores que deram True na condição
+
+imoveis_true = (
+    imoveis
+    .dropna(subset=["hoa", "parking_spaces"])
+    .reset_index(drop=True)
+)
+```
+
+rng.random sorteia um número em [0, 1) para cada linha. .mask troca por NaN os valores cujo sorteio fica abaixo de share.
+O gabarito mantém apenas registros com hoa e parking_spaces conhecidos.
+
+```{python}
+# Apaga valores em três colunas de tipos diferentes
+imoveis_missing = (
+    imoveis_true
+    .assign(
+        rooms=lambda df: erase_at_random(df["rooms"], .10),
+        rent_amount=lambda df: erase_at_random(df["rent_amount"], .15),
+        furniture=lambda df: erase_at_random(df["furniture"], .08),
+    )
+)
+```
+
+
+```{python}
+# Quantidade e proporção de valores apagados por coluna
+(
+    imoveis_missing[["rooms", "rent_amount", "furniture"]]
+    .isna()
+    .sum()
+    .to_frame("ausentes")
+    .assign(
+        proporcao=lambda x: (
+            x.ausentes / len(imoveis_missing)
+        ).round(3)
+    )
+)
+```
