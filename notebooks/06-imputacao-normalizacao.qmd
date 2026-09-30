@@ -132,3 +132,29 @@ axes[2].set(
 plt.tight_layout()
 plt.show()
 ```
+
+# Ausência Estrutural
+
+No caso das casas a ausência de valores nos campos que tratam de andar é estrutural, pois atribuir um valor a uma casa apenas pra preencher esse campo, é incorreto, por casas não possuir andares.
+
+
+```{python}
+# Número de imóveis e proporção sem andar, por tipo
+(
+    imoveis
+    .groupby("property_type")
+    .agg(
+        imoveis=("property_type", "size"),
+        proporcao_sem_andar=(
+            "floor",
+            lambda x: (
+                x
+                .isna()
+                .mean()
+            ),
+        ),
+    )
+)
+```
+
+Ou seja, de todos os apartamentos não há nenhum dado do na coluna floor faltante. Já nas casas todos são faltantes.
