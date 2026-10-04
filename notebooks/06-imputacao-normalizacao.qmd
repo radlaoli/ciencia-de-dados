@@ -211,6 +211,8 @@ imoveis_missing = (
 )
 ```
 
+# imputação
+
 ## Média, mediana e mediana agrupada
 
 As estratégias mais simples substituem todas as lacunas por uma única constante calculada com os valores observados da coluna.
@@ -392,4 +394,79 @@ a média é uma conta válida, mas o resultado dela não é um valor que um imó
     )
     .to_frame()
 )
+```
+
+
+# Escalonamento
+
+Escalonamento é transformar uma variável numérica para colocá-la numa escala comparável às outras, mudando só a unidade de medida, sem alterar a ordem dos valores nem o formato da distribuição.
+
+## Três Escaladores
+
+```{python}
+# Aplica os três escaladores ao aluguel
+rent_frame = imoveis_true[["rent_amount"]]
+
+scaled = {
+    "Original": rent_frame.rent_amount.to_numpy(),
+    "StandardScaler": (
+        StandardScaler()
+        .fit_transform(rent_frame)
+        .ravel()
+    ),
+    "RobustScaler": (
+        RobustScaler()
+        .fit_transform(rent_frame)
+        .ravel()
+    ),
+    "MinMaxScaler": (
+        MinMaxScaler()
+        .fit_transform(rent_frame)
+        .ravel()
+    ),
+}
+```
+
+## Sensibilidade a Extremos
+
+
+```{python}
+# Min-Max ajustado com um aluguel fictício de R$ 500 mil
+with_extreme = pd.concat(
+    [rent_frame, pd.DataFrame({"rent_amount": [500_000.]})],
+    ignore_index=True,
+)
+
+minmax_extreme = (
+    MinMaxScaler()
+    .fit_transform(with_extreme)
+    .ravel()[:-1]
+)
+```
+
+
+```{python}
+# Min-Max sem e com o valor extremo
+fig, axes = plt.subplots(1, 2, figsize=(10, 4), sharey=True)
+
+for ax, values, title in zip(
+    axes,
+    [scaled["MinMaxScaler"], minmax_extreme],
+    ["Sem extremo", "Com aluguel de R$ 500 mil"],
+):
+    sns.histplot(
+        values,
+        bins=50,
+        binrange=(0, 1),
+        ax=ax,
+        color="#8172B2",
+    )
+    ax.set(
+        title=title,
+        xlabel="Escala Min-Max",
+        ylabel="Imóveis",
+    )
+
+plt.tight_layout()
+plt.show()
 ```
