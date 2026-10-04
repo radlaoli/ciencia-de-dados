@@ -295,3 +295,46 @@ for ax, (label, values) in zip(axes, rent_versions.items()):
 plt.tight_layout()
 plt.show()
 ```
+
+### Erro Absoluto Médio
+
+Mostra o qão perto cadda valor imputado ficou do valor correto (real)
+
+
+```{python}
+# Posições apagadas e seus valores verdadeiros
+rent_missing = imoveis_missing.rent_amount.isna()
+
+truth = imoveis_true.loc[rent_missing, "rent_amount"]
+```
+
+
+```{python}
+# MAE de cada estratégia, apenas nas posições imputadas
+(
+    pd.Series(
+        {
+            "Média": (
+                (truth - rent_mean)
+                .abs()
+                .mean()
+            ),
+            "Mediana": (
+                (truth - rent_median)
+                .abs()
+                .mean()
+            ),
+            "Mediana por tier": (
+                (truth - rent_group[rent_missing])
+                .abs()
+                .mean()
+            ),
+        },
+        name="MAE (R$)",
+    )
+    .round(2)
+    .to_frame()
+)
+```
+
+Quanto menor o MAE, mais próximo a distribuição  por imputação ficou da distribuição real
