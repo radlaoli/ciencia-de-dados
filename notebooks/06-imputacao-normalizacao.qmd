@@ -555,3 +555,120 @@ for ax, (label, values) in zip(axes, transformed.items()):
 plt.tight_layout()
 plt.show()
 ```
+
+# Aplicação e Comparação Final
+
+## Registrar as Lacunas
+
+```{python}
+# Colunas indicadoras das lacunas originais
+imoveis_processed = (
+    imoveis
+    .assign(
+        hoa_missing=lambda x: x.hoa.isna(),
+        parking_spaces_missing=lambda x: x.parking_spaces.isna(),
+    )
+)
+```
+
+## Imputar pela mediana do grupo
+
+```{python}
+# Imputa hoa e vagas pela mediana de cada grupo
+groups = ["property_type", "tier"]
+
+imoveis_processed = (
+    imoveis_processed
+    .assign(
+        hoa=lambda x: (
+            x
+            .groupby(groups)
+            .hoa
+            .transform(lambda s: s.fillna(s.median()))
+            .fillna(imoveis.hoa.median())
+        ),
+        parking_spaces=lambda x: (
+            x
+            .groupby(groups)
+            .parking_spaces
+            .transform(lambda s: s.fillna(s.median()))
+            .fillna(imoveis.parking_spaces.median())
+        ),
+    )
+)
+```
+
+
+```{python}
+# Lacunas restantes e valores estimados
+(
+    imoveis_processed
+    .agg(
+        {
+            "hoa": lambda s: s.isna().sum(),
+            "parking_spaces": lambda s: s.isna().sum(),
+            "hoa_missing": "sum",
+            "parking_spaces_missing": "sum",
+        }
+    )
+)
+```
+
+
+## Reduzir as caudas
+
+```{python}
+# Log nas variáveis positivas e Yeo-Johnson na distância
+imoveis_processed = (
+    imoveis_processed
+    .assign(
+        area=lambda x: np.log(x.area),
+        rent_amount=lambda x: np.log(x.rent_amount),
+        property_tax=lambda x: np.log(x.property_tax),
+        total=lambda x: np.log(x.total),
+        transit_distance_min=lambda x: stats.yeojohnson(
+            x.transit_distance_min
+        )[0],
+    )
+)
+```
+
+## Antes e Depois
+
+
+```{python}
+# Variáveis comparadas e seus rótulos nos gráficos
+columns = [
+    "area",
+    "rent_amount",
+    "property_tax",
+    "total",
+    "transit_distance_min",
+]
+
+labels = ["Área", "Aluguel", "IPTU", "Total", "Distância"]
+```
+
+
+```{python}
+# Distribuições antes (linha de cima) e depois (linha de baixo)
+fig, axes = plt.subplots(2, 5, figsize=(18, 7))
+
+for col, label, ax1, ax2 in zip(columns, labels, axes[0], axes[1]):
+    before, after = imoveis[col], imoveis_processed[col]
+    sns.histplot(before, bins=50, ax=ax1, color="#4C72B0")
+    ax1.set(
+        title=f"{label}: antes\nassimetria = {stats.skew(before):.2f}",
+        xlabel="",
+        ylabel="Imóveis",
+    )
+    sns.histplot(after, bins=50, ax=ax2, color="#55A868")
+    ax2.set(
+        title=f"{label}: depois\nassimetria = {stats.skew(after):.2f}",
+        xlabel="",
+        ylabel="Imóveis",
+    )
+
+plt.tight_layout()
+plt.show()
+```
