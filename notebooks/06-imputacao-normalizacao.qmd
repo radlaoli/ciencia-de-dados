@@ -338,3 +338,58 @@ truth = imoveis_true.loc[rent_missing, "rent_amount"]
 ```
 
 Quanto menor o MAE, mais próximo a distribuição  por imputação ficou da distribuição real
+
+## Moda e variáveis Discretas
+
+```{python}
+# Categoria mais frequente de furniture
+furniture_mode = (
+    imoveis_missing.furniture
+    .mode()
+    .iloc[0]
+)
+
+furniture_mode
+```
+
+not furnished é o valor categorico nominal que mais aparece
+
+- Substitui os valores faltantes pela moda
+```{python}
+# Contagem das categorias antes e depois da imputação
+(
+    pd.concat(
+        {
+            "Antes": imoveis_missing.furniture.value_counts(dropna=False),
+            "Depois da moda": (
+                imoveis_missing.furniture
+                .fillna(furniture_mode)
+                .value_counts()
+            ),
+        },
+        axis=1,
+    )
+    .fillna(0)
+)
+```
+
+a média é uma conta válida, mas o resultado dela não é um valor que um imóvel real poderia ter. Por isso, se usar a média para preencher os quartos faltantes, vai criar imóveis impossíveis. A mediana e a moda não têm esse problema, porque sempre resultam em um valor inteiro que de fato existe nos dados.
+
+```{python}
+# Média, mediana e moda do número de quartos
+(
+    pd.Series(
+        {
+            "média": imoveis_missing.rooms.mean(),
+            "mediana": imoveis_missing.rooms.median(),
+            "moda": (
+                imoveis_missing.rooms
+                .mode()
+                .iloc[0]
+            ),
+        },
+        name="quartos",
+    )
+    .to_frame()
+)
+```
