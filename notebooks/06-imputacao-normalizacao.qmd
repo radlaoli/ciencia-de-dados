@@ -470,3 +470,88 @@ for ax, values, title in zip(
 plt.tight_layout()
 plt.show()
 ```
+
+
+# Transformações
+
+Transformação da distribuição é aplicar uma função não linear (como logaritmo, Box-Cox ou Yeo-Johnson) para mudar a forma da distribuição, reduzindo a assimetria e o peso da cauda longa, diferente do escalonamento, que muda só a régua.
+
+## Aluguel positivo: log e Box-Cox
+
+Para usar o log e Box-Cox, os valores precisam ser estritamente positivos
+
+
+```{python}
+# Aluguel original, em log e em Box-Cox
+rent = imoveis_true.rent_amount
+
+boxcox_rent, boxcox_lambda = stats.boxcox(rent)
+
+rent_transformed = {
+    "Original": rent,
+    "log": np.log(rent),
+    f"Box-Cox (λ={boxcox_lambda:.2f})": boxcox_rent,
+}
+```
+
+stats.boxcox devolve uma tupla com os valores transformados e o λ estimado. 
+
+```{python}
+# Histogramas das transformações do aluguel
+fig, axes = plt.subplots(1, 3, figsize=(14, 4), sharey=True)
+
+for ax, (label, values) in zip(axes, rent_transformed.items()):
+    sns.histplot(values, bins=50, ax=ax, color="#C44E52")
+    ax.set(
+        title=f"{label}\nassimetria = {stats.skew(values):.2f}",
+        xlabel="Escala",
+        ylabel="Imóveis",
+    )
+
+plt.tight_layout()
+plt.show()
+```
+
+O valor de λ próximo de zero mostra que, dentro da família Box-Cox, a transformação estimada é muito semelhante ao logaritmo. Isso sustenta o uso de log para o aluguel desta base.
+
+## Distância com zeros: log1p e Yeo-Johnson
+
+Como a distância ao transporte pode ser zero e log e Box-Cox só aceitam valores positivos, usam-se alternativas que aceitam zero, log1p, que calcula log(1 + x), e Yeo-Johnson. Com standardize=False, o PowerTransformer só transforma a distribuição, sem escalonar.
+
+```{python}
+# Distância original, em log1p e em Yeo-Johnson
+transit = imoveis_true.transit_distance_min
+
+pt = PowerTransformer(method="yeo-johnson", standardize=False)
+
+transit_yj = (
+    pt
+    .fit_transform(imoveis_true[["transit_distance_min"]])
+    .ravel()
+)
+
+transformed = {
+    "Original": transit,
+    "log1p": np.log1p(transit),
+    f"Yeo-Johnson (λ={pt.lambdas_[0]:.2f})": transit_yj,
+}
+```
+
+np.log1p calcula log(1 + x), que é definido em zero. 
+pt.lambdas_ guarda um λ para cada coluna ajustada. Aqui há apenas uma. 
+
+```{python}
+# Histogramas das transformações da distância
+fig, axes = plt.subplots(1, 3, figsize=(14, 4), sharey=True)
+
+for ax, (label, values) in zip(axes, transformed.items()):
+    sns.histplot(values, bins=50, ax=ax, color="#DD8452")
+    ax.set(
+        title=f"{label}\nassimetria = {stats.skew(values):.2f}",
+        xlabel="Escala",
+        ylabel="Imóveis",
+    )
+
+plt.tight_layout()
+plt.show()
+```
