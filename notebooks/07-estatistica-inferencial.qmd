@@ -1,0 +1,39 @@
+---
+title: "Aula 7 - Estatística Inferencial"
+date: "2026-10-07"
+date-format: "DD [de] MMMM [de] YYYY"
+lang: pt
+---
+
+# Preparando os Dados
+
+```{python}
+# Importa as bibliotecas e define o tema dos gráficos
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
+
+sns.set_theme(style="whitegrid", palette="colorblind")
+```
+
+Vamos utiliazar a base mtcars que tem registro de 32 modelos de veículos vendidos nos Estados Unidos entre os anos de 1973 e 1974.
+
+Possui 11 colunas, mas vamos usar apenas:
+mpg -> Indica o consumo em milhas por galão 
+am -> Se o cêmbio é manual (1) ou automático (0)
+
+
+```{python}
+# Carrega o df substituindo por Manual onde o valor é 1 e Automatico onde é 0
+
+mtcars = (
+    pd.read_csv("../data/mtcars.csv")
+    .assign(
+        transmission = lambda df: np.where(df["am"] == 1, "Manual", "Automático")
+    )
+)
+
+mtcars.head()
+```
