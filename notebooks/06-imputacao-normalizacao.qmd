@@ -6,6 +6,7 @@ lang: pt
 ---
 
 # Preparando a Base
+Nessa aula usamos um dataframe contendo informações sobre os imóveis de São Paulo 
 
 ```{python}
 from pathlib import Path
