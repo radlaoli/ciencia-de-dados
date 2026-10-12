@@ -324,3 +324,146 @@ plt.show()
 ```
 
 A curva normal prevista pela fórmula se encaixa bem no histograma das permutações. As linhas tracejadas marcam ±1 erro-padrão, a faixa onde caem as diferenças mais comuns sob a hipótese nula. A diferença observada no câmbio (cerca de 7,24 mpg) fica muito além dessa faixa, a mais de 3 erros-padrão do zero, o que reforça o p-valor baixo.
+
+## Desvio-Padrão e Erro-Padrão
+
+Para ilustrar a diferença entre os conceitos, vamos fazer o cálculo deles no exeplo da lua cheia, só que com 2000 amostras.
+
+
+```{python}
+# Desvio-padrão dos dados e das médias amostrais, por tamanho de amostra
+rng = np.random.default_rng(42)  # sorteador com semente (reproduzível)
+
+def sample_summary(n, n_samples=2_000):
+    # sorteia 2.000 amostras de tamanho n dos atendimentos (com reposição)
+    # cada linha da matriz é uma amostra
+    samples = rng.choice(moon_values, size=(n_samples, n))
+    return {
+        # desvio-padrão dentro de cada amostra, e depois a média deles
+        "dp_dos_dados": samples.std(axis=1, ddof=1).mean(),
+        # média de cada amostra, e depois o desvio-padrão dessas médias
+        "dp_das_medias": samples.mean(axis=1).std(ddof=1),
+        # fórmula para a variação das médias s / √n
+        "previsto_s_raiz_n": moon_values.std(ddof=1) / np.sqrt(n),
+    }
+
+# aplica a função para cada tamanho de amostra e monta a tabela
+(
+    pd.DataFrame({n: sample_summary(n) for n in [10, 40, 160, 640]})
+    .T                   # transpõe, cada linha vira um tamanho de amostra
+    .rename_axis("n")    # dá o nome "n" ao índice
+    .round(2)            # arredonda para 2 casas decimais
+)
+```
+
+A coluna `dp_dos_dados` mostra a variação entre os dias de uma mesma amostra, que fica em torno de 11 atendimentos em todos os tamanhos, já que aumentar o número de dias não muda o quanto cada dia oscila. 
+A coluna `dp_das_medias` mostra o quanto a média muda de uma amostra para outra, com 10 dias essa variação é de cerca de 3,5 atendimentos, e com 640 dias cai para cerca de 0,4, reduzindo-se pela metade a cada vez que o tamanho da amostra é multiplicado por 4.
+A coluna `previsto_s_raiz_n` traz o valor esperado pela fórmula s/√n, que fica muito próximo da coluna anterior e confirma que a fórmula descreve bem a variação das médias.
+
+dp -> descreve os dados.
+ep -> descreve a precisão da estimativa.
+
+## A Estatística t
+
+A estatistica t define quantos desvios-padroes cabem entre o 0 e o efeito observado.
+
+```{python}
+# Efeito observado do câmbio, medido em erros-padrão
+round(delta_obs / se_null, 2)
+```
+
+A diferença observada no câmbio equivale a cerca de 3,3 erros-padrão. Sob o acaso, a diferença quase nunca passa de 2 erros-padrão, então esse resultado já indica um efeito real. Medir em erros-padrão também permite comparar efeitos em unidades diferentes, como mpg e atendimentos.
+
+```{python}
+# Estatística t de Welch calculada pela fórmula
+se_welch = np.sqrt(manual.var() / n_manual + automatic.var() / n_automatic)
+
+round(se_welch, 2), round(delta_obs / se_welch, 2)
+```
+
+Na versão de Welch, a variação é calculada dentro de cada grupo separadamente. O erro-padrão cai para 1,92 mpg e o t sobe para 3,77, porque o cálculo anterior juntava os 32 carros e a própria distância entre manuais e automáticos inflava a dispersão.
+
+```{python}
+# Teste t de Welch no mtcars
+mpg_ttest = stats.ttest_ind(manual, automatic, equal_var=False)
+
+mpg_ttest
+```
+
+O `stats.ttest_ind` faz o cálculo completo: t de 3,77, p-valor de 0,0014 e cerca de 18,3 graus de liberdade. Os graus de liberdade indicam quanta informação existe para estimar a variação: com poucos, o teste é mais exigente para rejeitar a hipótese nula. Com p-valor tão baixo, rejeitamos a hipótese nula: o tipo de câmbio afeta o consumo.
+
+```{python}
+# Teste t de Welch na lua cheia
+moon_ttest = stats.ttest_ind(moon_in, moon_out, equal_var=False)
+
+moon_ttest
+```
+
+Na lua cheia, o t é de cerca de 1,4, bem abaixo do limiar aproximado de 2 erros-padrão, e o p-valor é de 0,19. O resultado é comum sob o acaso, então não rejeitamos a hipótese nula. As conclusões do teste t coincidem com as da permutação nos dois casos.
+
+## Um único valor atípico muda a história
+
+Como o teste t depende da média e do desvio-padrão, também é sensível a valores extremos.
+Ilustrando:
+
+```{python}
+# Automáticos com um consumo digitado como 60 mpg
+automatic_typo = pd.concat(
+    [automatic, pd.Series([60.])],
+    ignore_index=True,
+)
+```
+
+Para testar a sensibilidade do teste t a valores extremos, acrescentamos aos automáticos um carro com consumo de 60 mpg.
+
+```{python}
+# Diferenças, dispersão e teste t, sem e com o valor digitado errado
+def compare(group_a, group_b):
+    test = stats.ttest_ind(group_a, group_b, equal_var=False)
+    return {
+        "dif_medias": group_a.mean() - group_b.mean(),
+        "dif_medianas": group_a.median() - group_b.median(),
+        "dp_automaticos": group_b.std(),
+        "t": test.statistic,
+        "p": test.pvalue,
+    }
+```
+
+```{python}
+(
+    pd.DataFrame(
+        {
+            "mtcars original": compare(manual, automatic),
+            "+1 automático com 60 mpg": compare(manual, automatic_typo),
+        }
+    )
+    .T
+    .round(4)
+)
+```
+
+Um único valor errado mudou a conclusão do teste. 
+A diferença de médias caiu de 7,24 para 5,10 mpg e o desvio-padrão dos automáticos quase triplicou, de 3,83 para 10,28 mpg. 
+Com a diferença menor e a dispersão maior, o t caiu de 3,77 para 1,78 e o p-valor subiu de 0,0014 para 0,085, deixando de indicar diferença ao nível de 5%. J
+á a diferença de medianas quase não mudou (de 5,50 para 5,25 mpg), porque a mediana não é afetada por valores extremos.
+
+## Permutação e teste t
+
+```{python}
+# p-valores dos dois métodos nos dois exemplos
+(
+    pd.DataFrame(
+        {
+            "permutação": [mpg_p, moon_p],
+            "teste t (Welch)": [mpg_ttest.pvalue, moon_ttest.pvalue],
+        },
+        index=["mtcars", "Lua cheia"],
+    )
+    .round(4)
+)
+```
+
+Apesar de gerarem valores distintos, são bem próximos e apontam para a mesma conclusão.
+Em ambas as técnicas:
+No caso do mtcars: p < 0,05.
+No caso da lua : p > 0,05.
