@@ -467,3 +467,87 @@ Apesar de gerarem valores distintos, são bem próximos e apontam para a mesma c
 Em ambas as técnicas:
 No caso do mtcars: p < 0,05.
 No caso da lua : p > 0,05.
+
+# Armadilha de Decisão
+
+## Muitos testes
+
+```{python}
+# p-valores da lua cheia em 20 pronto-socorros sem efeito
+rng = np.random.default_rng(7)
+
+hospital_p = stats.ttest_ind(
+    rng.poisson(120, size=(20, 12)),
+    rng.poisson(120, size=(20, 353)),
+    axis=1,
+    equal_var=False,
+).pvalue
+```
+
+Simulamos 20 pronto-socorros em que a lua não tem efeito nenhum e aplicamos o teste t em cada um, guardando os 20 p-valores.
+
+```{python}
+# p-valor de cada pronto-socorro, com destaque para as rejeições
+fig, ax = plt.subplots(figsize=(9, 3.5))
+
+ax.bar(
+    np.arange(1, 21),
+    hospital_p,
+    color=np.where(hospital_p <= .05, "#DD8452", "#A1C9F4"),
+)
+ax.axhline(.05, color="#1F4E79", linestyle="--")
+ax.set(
+    title="20 pronto-socorros, nenhum efeito da lua",
+    xlabel="Pronto-socorro",
+    ylabel="p-valor",
+    xticks=np.arange(1, 21),
+)
+
+plt.tight_layout()
+plt.show()
+```
+
+Mesmo sem efeito da lua, um dos 20 pronto-socorros teve p-valor abaixo de 0,05 e rejeitou a hipótese nula por puro acaso.
+O que é esperado com limite de 5%, cerca de 1 em cada 20 testes dá um falso positivo. Os outros p-valores se espalham entre 0 e 1.
+
+```{python}
+# Probabilidade de pelo menos um falso positivo em k testes sem efeito
+alpha = .05
+
+(
+    pd.DataFrame({"k": [1, 5, 20, 100]})
+    .assign(
+        sem_correcao=lambda df: 1 - (1 - alpha) ** df["k"],
+        bonferroni=lambda df: 1 - (1 - alpha / df["k"]) ** df["k"],
+    )
+    .set_index("k")
+    .round(3)
+)
+```
+
+Sem correção, a chance de pelo menos um falso positivo cresce rapidamente com o número de testes, 23% com 5 testes, 64% com 20 e mais de 99% com 100.
+Com a correção de Bonferroni, que divide o limite de 0,05 pelo número de testes, essa chance fica em torno de 5% em todos os casos. 
+O custo é um critério mais exigente em cada teste, o que dificulta detectar efeitos reais.
+
+
+Logo quanto mais testes se faz, maior a chance de encontrar algum resultado “significativo” só por acaso.
+
+## Significância estatística não é relevância prática
+
+```{python}
+# p-valor de um efeito fixo de 0,02 desvio-padrão, por tamanho de grupo
+(
+    pd.Series(
+        {
+            n: 2 * stats.t.sf(.02 * np.sqrt(n / 2), df=2 * n - 2)
+            for n in [100, 1_000, 10_000, 100_000, 1_000_000]
+        },
+        name="p",
+    )
+    .rename_axis("n por grupo")
+    .to_frame()
+)
+```
+
+O mesmo efeito minúsculo ficou cada vez mais “significativo” só porque a amostra cresceu. Com 100 ou 1.000 observações por grupo, o p-valor é alto, mas com 100.000 ou mais ele fica muito abaixo de 0,05. 
+Ou seja, em bases grandes quase tudo vira significativo, por isso o p-valor sozinho não diz se a diferença importa na prática.
