@@ -278,3 +278,49 @@ plot_null(
 ```
 
 O valor de p tão baixo indica que quase nenhuma diferença de médias das permutações passou do efeito observado. Logo, a hipótese nula deve ser rejeitada, pois o valor observado seria muito improvável se o tipo de câmbio não tivesse efeito sobre o consumo.
+
+# O Atalho Paramétrico
+
+## O Erro-Padrão
+
+```{python}
+# Largura da distribuição nula do câmbio, medida pela simulação
+round(mpg_null.std(), 2)
+```
+
+O desvio-padrão das 10.000 diferenças da permutação mede a largura da distribuição nula, ou seja, o quanto a diferença de médias varia só por acaso. Ele ficou em torno de 2,2 mpg.
+
+```{python}
+# Largura da distribuição nula do câmbio, prevista pela fórmula
+n_manual, n_automatic = len(manual), len(automatic)
+
+se_null = mtcars.mpg.std() * np.sqrt(1 / n_manual + 1 / n_automatic)
+
+round(se_null, 2)
+```
+
+A mesma largura pode ser prevista por uma fórmula, o erro-padrão da diferença de médias, o desvio-padrão do mpg multiplicado pela raiz de (1/n₁ + 1/n₂), em que n₁ e n₂ são os tamanhos dos grupos manual e automático. O valor obtido é praticamente igual ao da simulação, mostrando que a fórmula descreve bem o que o acaso produz.
+
+```{python}
+# Histograma das permutações e curva normal prevista pela fórmula
+fig, ax = plt.subplots(figsize=(8, 4))
+
+grid = np.linspace(-9, 9, 300)
+
+ax.hist(mpg_null, bins=40, density=True,
+        color="#A1C9F4", label="10.000 permutações")
+ax.plot(grid, stats.norm.pdf(grid, 0, se_null),
+        color="#1F4E79", linewidth=2, label="curva prevista pela fórmula")
+        
+for value in [-se_null, se_null]:
+    ax.axvline(value, color="#DD8452", linestyle="--")
+
+ax.set(title="±1 erro-padrão", xlabel="Δperm: diferença de médias sob H₀ (mpg)",
+       ylabel="Densidade")
+ax.legend()
+
+plt.tight_layout()
+plt.show()
+```
+
+A curva normal prevista pela fórmula se encaixa bem no histograma das permutações. As linhas tracejadas marcam ±1 erro-padrão, a faixa onde caem as diferenças mais comuns sob a hipótese nula. A diferença observada no câmbio (cerca de 7,24 mpg) fica muito além dessa faixa, a mais de 3 erros-padrão do zero, o que reforça o p-valor baixo.
