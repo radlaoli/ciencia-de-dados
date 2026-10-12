@@ -193,3 +193,88 @@ plt.show()
 
 A mediana da lua cheia (cerca de 121) é um pouco maior que a dos demais dias (cerca de 119), mas as caixas se sobrepõem quase totalmente e todos os 12 dias de lua cheia ficam dentro da faixa dos demais dias. Com tão poucos pontos, a diferença de 3,88 é pequena perto da variação natural de um dia para outro, que vai de cerca de 90 a 150 atendimentos.
 
+# Formalizando o Acaso
+
+## O Teste de Permutação
+
+Se a hipótese nula for verdadeira, ou seja, se a lua cheia não tiver efeito sobre os atendimentos, podemos embaralhar os rótulos de lua cheia entre quaisquer dias do ano, e as diferenças obtidas serão parecidas com a original.
+
+
+```{python}
+# Distribuição nula por permutação, aplicada à lua cheia
+def permutation_null(values, labels, n_perm=10_000, seed=2026):
+    rng = np.random.default_rng(seed)  # sorteador com semente 
+    null = []  # guarda as diferenças de cada embaralhamento
+    for _ in range(n_perm):  # repete 10.000 vezes
+        shuffled = rng.permutation(labels)  # embaralha os rótulos de lua cheia entre os dias
+        # diferença entre as médias com os rótulos embaralhados
+        null.append(values[shuffled].mean() - values[~shuffled].mean())
+    return np.array(null)  # devolve as 10.000 diferenças como array
+
+# converte as colunas em arrays do numpy
+moon_values = er_visits["visits"].to_numpy()  # atendimentos de cada dia
+moon_labels = er_visits["full_moon"].to_numpy()  # True/False de lua cheia
+
+# gera a distribuição nula
+moon_null = permutation_null(moon_values, moon_labels)
+
+# mostra as 5 primeiras diferenças, com 2 casas decimais
+moon_null[:5].round(2)
+```
+
+Cada valor de moon_null é a diferença obtida ao rotular 12 dias quaisquer como lua cheia. Nos cinco primeiros, há valores positivos e negativos, e alguns são até maiores (em módulo) que os 3,88 observados, mostrando que o acaso sozinho produz diferenças desse tamanho.
+
+
+```{python}
+# Distribuição nula da lua cheia e posição do efeito observado
+def plot_null(null, obs, title, xlabel):
+    fig, ax = plt.subplots(figsize=(9, 4))
+    sns.histplot(null, bins=50, color="#A1C9F4", ax=ax)
+    for value in [-obs, obs]:
+        ax.axvline(value, color="#DD8452", linewidth=2)
+    ax.set(title=title, xlabel=xlabel, ylabel="Permutações")
+    plt.tight_layout()
+    plt.show()
+
+plot_null(
+    moon_null,
+    moon_obs,
+    title="Lua cheia: onde cai o Δobs na distribuição do acaso?",
+    xlabel="Δperm: diferença de médias após sortear 12 dias como lua cheia",
+)
+```
+
+```{python}
+moon_p = np.mean(np.abs(moon_null) >= abs(moon_obs))
+
+moon_p
+```
+
+As linhas laranja marcam ±3,88. A distribuição do acaso fica centrada em zero e uma parte considerável das permutações cai além dessas linhas, ou seja, diferenças do tamanho da observada são comuns mesmo sem efeito da lua. Portanto, os 3,88 atendimentos a mais não são evidência de que a lua cheia aumenta os atendimentos.
+
+## Permutação no `mtcars`
+
+```{python}
+mpg_values = mtcars["mpg"].to_numpy()
+mpg_labels = (mtcars["am"] == 1).to_numpy()
+
+# Distribuição nula do câmbio
+mpg_null = permutation_null(mpg_values, mpg_labels)
+
+# p-valor -> proporção de permutações com diferença pelo menos tão extrema quanto a observada
+mpg_p = np.mean(np.abs(mpg_null) >= abs(delta_obs))
+
+mpg_p
+```
+
+```{python}
+# Distribuição nula do câmbio e posição do efeito observado
+plot_null(
+    mpg_null,
+    delta_obs,
+    title="Câmbio: onde cai o Δobs na distribuição do acaso?",
+    xlabel="Δperm: diferença de médias (mpg) após embaralhar o câmbio",
+)
+```
+
+O valor de p tão baixo indica que quase nenhuma diferença de médias das permutações passou do efeito observado. Logo, a hipótese nula deve ser rejeitada, pois o valor observado seria muito improvável se o tipo de câmbio não tivesse efeito sobre o consumo.
