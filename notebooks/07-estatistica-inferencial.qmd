@@ -24,7 +24,7 @@ Possui 11 colunas, mas vamos usar apenas:
 mpg -> Indica o consumo em milhas por galão 
 am -> Se o cêmbio é manual (1) ou automático (0)
 
-
+Deixando o rótulo mais legível:
 ```{python}
 # Carrega o df substituindo por Manual onde o valor é 1 e Automatico onde é 0
 
