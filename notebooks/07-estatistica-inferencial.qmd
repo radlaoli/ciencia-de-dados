@@ -97,3 +97,5 @@ ax.set(title=f"Δobs = {delta_obs:.2f} mpg", xlabel="",
 plt.tight_layout()
 plt.show()
 ```
+
+É possível perveber que, de fato, os pontos que representam os carros automáticos tem a concentração no local mais baixo de mgp do que os manuais.
