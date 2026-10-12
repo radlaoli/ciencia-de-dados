@@ -99,3 +99,97 @@ plt.show()
 ```
 
 É possível perveber que, de fato, os pontos que representam os carros automáticos tem a concentração no local mais baixo de mgp do que os manuais.
+
+# O Problema da Aleatoriedade
+
+## Um Pronto-Socorro Simulado
+
+Simulamos um ano de atendimentos em um pronto-socorro fictício, sorteando todos os dias da mesma distribuição. Assim, sabemos que a lua não tem efeito, e qualquer diferença entre os grupos será fruto apenas do acaso.
+
+
+```{python}
+# Sorteia números aleatórios com semente 2726 (resultado reproduzível)
+rng = np.random.default_rng(2726)
+
+# Dias do ano em que cai lua cheia
+full_moon_days = np.round(np.arange(12) * 29.53 + 14)
+
+er_visits = (
+    pd.DataFrame({"day": np.arange(365)})  # df com os 365 dias do ano
+    .assign(
+        # Atendimentos por dia, sorteados de uma Poisson com média 120
+        visits=rng.poisson(120, size=365),
+        # True se o dia é de lua cheia
+        full_moon=lambda df: df["day"].isin(full_moon_days),
+        # Rótulo legível do grupo
+        moon=lambda df: np.where(df["full_moon"], "Lua cheia", "Demais dias"),
+    )
+)
+
+er_visits.head()
+```
+
+O `full_moon_days` é a lista dos dias em que cai a lua cheia:
+
+- `np.arange(12)` -> as 12 luas cheias do ano (uma por mês, aproximadamente)
+- `29.53` -> a duração do ciclo lunar, em dias
+- `14` -> a primeira lua cheia acontece no dia 14
+
+Os atendimentos de todos os dias vêm da mesma distribuição de Poisson (média de 120 por dia), então a lua não tem efeito. As colunas `full_moon` e `moon` só marcam quais dias são de lua cheia para podermos comparar os grupos.
+
+Assim, podemos separar atendimentos que aconteceram com e sem lua cheia:
+
+
+```{python}
+(
+    er_visits
+    .groupby("moon")
+    .visits
+    .agg(["size", "mean", "median", "std"])
+    .round(2)
+)
+```
+
+Como esperado, o número de dias sem lua cheia (size) é bem maior, já que só há 12 luas cheias no ano.
+
+Tanto a média quanto a mediana são maiores nos dias de lua cheia, o que dá a impressão de que há mais atendimentos nesses dias.
+
+O desvio-padrão diário é parecido nos dois grupos (cerca de √120 ≈ 11), mas a média de 12 dias oscila muito mais que a de 353 dias. Essa oscilação do grupo pequeno aparece como uma “diferença”, mesmo sem efeito da lua. cheia se baseiam em apenas 12 dias e, por isso, são menos confiáveis.
+
+Diferença observada:
+
+
+```{python}
+# selecionando atendimentos com lua cheia e sem
+moon_in = er_visits.loc[er_visits.full_moon, "visits"]
+moon_out = er_visits.loc[~er_visits.full_moon, "visits"]
+
+# calculando o efeito observado
+moon_obs = moon_in.mean() - moon_out.mean()
+
+round(moon_obs, 2)
+```
+
+Os dias de lua cheia tiveram, em média, 3,88 atendimentos a mais que os demais. Mesmo não tendo efeito real, pela simulação dos dados.
+
+
+```{python}
+fig, ax = plt.subplots(figsize=(6, 4.5))
+
+plot_groups(
+    er_visits, "moon", "visits", ["Demais dias", "Lua cheia"], ax,
+    alpha=.4, jitter=.2,
+)
+
+ax.set(
+    title=f"Δobs = {moon_obs:+.2f} atendimentos/dia",
+    xlabel="",
+    ylabel="Atendimentos por dia",
+)
+
+plt.tight_layout()
+plt.show()
+```
+
+A mediana da lua cheia (cerca de 121) é um pouco maior que a dos demais dias (cerca de 119), mas as caixas se sobrepõem quase totalmente e todos os 12 dias de lua cheia ficam dentro da faixa dos demais dias. Com tão poucos pontos, a diferença de 3,88 é pequena perto da variação natural de um dia para outro, que vai de cerca de 90 a 150 atendimentos.
+
