@@ -37,3 +37,63 @@ mtcars = (
 
 mtcars.head()
 ```
+
+# A diferença Observada
+
+Distãncia / Diferença entre as médias de amostras a e b de cada grupo/população.
+A é o grupo que se suspeita o efeito.
+
+```{python}
+# Calcula o tamanho, média, mediana e desvio padrão do mpg (consumo) agrupado pelo tipo de transmissão.
+(
+    mtcars
+    .groupby("transmission")
+    .mpg
+    .agg(["size", "mean", "median", "std"])
+    .round(2)
+)
+```
+
+No caso dos manuais, a média é maior que a mediana. Logo, entende-se que existem carros econômicos que puxam a média pra cima
+Os manuais também são mais dispersos, pois o desvio padrão dos automaticos é 3,83 e o dos manuais é 6,17.
+
+Para avaliar esses efeitos de forma unificada, podemos fazer a diferença amostral.
+
+```{python}
+# seleciona os mpgs dos carros manuais e automaticos
+manual = mtcars.loc[mtcars.am == 1, "mpg"]
+automatic = mtcars.loc[mtcars.am == 0, "mpg"]
+
+# Calcula a diferença entre as medias das amostras
+delta_obs = manual.mean() - automatic.mean()
+
+round(delta_obs, 2) # arrendonda o v observado para 2 casas decimais
+```
+
+O valor do delta_obs quer dizer que os carros mauais percorrem 7 milhas a mais o que os automaticos por galão. Logo, entende-se que os manuais são mais economicos.
+
+Box Splot para visualizar a diferença de dispersão entre os grupos
+pontos -> carros 
+linhas tracejadas -> médias dos grupos
+```{python}
+# Boxplot com as observações sobrepostas e as médias de cada grupo
+def plot_groups(data, x, y, order, ax, alpha=1, jitter=.15):
+    sns.boxplot(
+        data=data, x=x, y=y, order=order, ax=ax,
+        color="#A1C9F4",
+        showfliers=False,
+    )
+    sns.stripplot(
+        data=data, x=x, y=y, order=order, ax=ax,
+        color="#1F4E79", alpha=alpha, jitter=jitter,
+    )
+
+fig, ax = plt.subplots(figsize=(6, 4.5))
+plot_groups(mtcars, "transmission", "mpg", ["Automático", "Manual"], ax)
+for mean in [automatic.mean(), manual.mean()]:
+    ax.axhline(mean, color="#DD8452", linestyle="--")
+ax.set(title=f"Δobs = {delta_obs:.2f} mpg", xlabel="",
+       ylabel="Consumo (milhas por galão)")
+plt.tight_layout()
+plt.show()
+```
