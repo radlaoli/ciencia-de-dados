@@ -1,0 +1,23 @@
+# Para casa da Aula 6
+
+## Preparando o Ambiente
+
+- Imports das bibliotecas
+```{python}
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
+
+```
+
+- Base de dados para a atividade
+```{python}
+imoveis = pd.read_csv("../../data/imoveis_sao_paulo.csv")
+
+imoveis.head()
+```
+
+
+
