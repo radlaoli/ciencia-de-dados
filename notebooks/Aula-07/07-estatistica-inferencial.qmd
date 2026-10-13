@@ -29,7 +29,7 @@ Deixando o rótulo mais legível:
 # Carrega o df substituindo por Manual onde o valor é 1 e Automatico onde é 0
 
 mtcars = (
-    pd.read_csv("../data/mtcars.csv")
+    pd.read_csv("../../data/mtcars.csv")
     .assign(
         transmission = lambda df: np.where(df["am"] == 1, "Manual", "Automático")
     )

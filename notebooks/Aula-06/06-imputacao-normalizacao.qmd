@@ -43,7 +43,7 @@ column_names = {
 ```{python}
 
 imoveis = (
-    pd.read_csv("../data/imoveis_sao_paulo.csv") # carregando base de dados
+    pd.read_csv("../../data/imoveis_sao_paulo.csv") # carregando base de dados
     .rename(columns=column_names)
     .drop_duplicates() # removendo duplicatas
     .reset_index(drop=True) 
