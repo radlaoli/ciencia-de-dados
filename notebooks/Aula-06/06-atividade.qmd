@@ -14,10 +14,13 @@ from scipy import stats
 
 - Base de dados para a atividade
 ```{python}
-imoveis = pd.read_csv("../../data/imoveis_sao_paulo.csv")
+imoveis = (
+    pd.read_csv("../../data/imoveis_sao_paulo.csv")
+    .drop_duplicates()
+    .reset_index(drop=True)    
+)
 
 imoveis.head()
 ```
 
-
-
+- Ajustes antes de iniciar
