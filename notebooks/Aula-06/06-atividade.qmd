@@ -23,4 +23,74 @@ imoveis = (
 imoveis.head()
 ```
 
-- Ajustes antes de iniciar
+
+## 1. Compare o MAE da média e da mediana para `rooms` e relacione o resultado à assimetria e ao caráter discreto da variável.
+
+```{python}
+imoveis["rooms"].isna().sum()
+```
+
+`rooms` tem 0 valores faltantes
+
+- Descrição do número de quartos
+
+```{python}
+(
+    imoveis[["rooms"]]
+    .agg(["mean", "median", "std", "skew", "min", "max"])
+    .round(3)
+)
+```
+
+A média fica um pouco acima da mediana, e a assimetria é positiva, mas leve. Alguns imóveis com muitos quartos puxam a média para cima, mas a cauda é curta, porque o máximo é de 6 quartos.
+
+```{python}
+# Apaga 10% dos quartos ao acaso
+rng = np.random.default_rng(42)
+
+rooms_real = imoveis["rooms"]
+rooms_faltante = rooms_real.mask(rng.random(len(rooms_real)) < .10)
+
+apagados = rooms_faltante.isna()
+```
+
+```{python}
+# Quantidade de apagados 
+print(f"{apagados.sum()} - {apagados.mean():.1%}")
+```
+
+Apagamos uma quantidade próxima de 10% dos registros do número de quartos, e guardamos os registros reais para após a imputação fazer a comparação
+
+```{python}
+rooms_media = rooms_faltante.mean()
+rooms_mediana = rooms_faltante.median()
+
+print(f"média   = {rooms_media:.3f}")
+print(f"mediana = {rooms_mediana:.1f}")
+```
+
+Calculamos a média e a mediana da coluna que possui os dados faltantes, as quais serão usadas para preencher os dados faltantes.
+
+```{python}
+# Erro de cada estratégia
+gabarito = rooms_real[apagados]
+
+pd.DataFrame(
+    {
+        "MAE (quartos)": [
+            (gabarito - rooms_media).abs().mean(),
+            (gabarito - rooms_mediana).abs().mean(),
+        ],
+        "acertos exatos": [
+            (gabarito == rooms_media).mean(),
+            (gabarito == rooms_mediana).mean(),
+        ],
+    },
+    index=["Média", "Mediana"],
+).round(3)
+```
+
+A mediana teve MAE menor que a média, como esperado, porque a mediana minimiza o erro absoluto. 
+A diferença é pequena, cerca de 0,06 quarto, porque a assimetria de rooms é leve e a cauda é curta, então média e mediana ficam próximas. 
+
+A mediana imputa 2 quartos e acertou 32,5% dos imóveis, que são os que de fato têm 2 quartos. A média imputa cerca de 2,26 quartos, um valor que não existe, e por isso não acertou nenhum imóvel. Para variáveis discretas, como nesse caso, a mediana é a melhor escolha entre as duas.
