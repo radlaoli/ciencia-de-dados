@@ -23,6 +23,28 @@ imoveis = (
 imoveis.head()
 ```
 
+```{python}
+imoveis.columns
+```
+
+Precisamos normalizar os nomes das colunas
+
+```{python}
+nomes_colunas = {
+    "parking spaces": "parking_spaces",
+    "hoa (R$)": "hoa",
+    "rent amount (R$)": "rent_amount",
+    "property tax (R$)": "property_tax",
+    "total (R$)": "total",
+}
+
+imoveis = (
+    imoveis
+    .rename(columns=nomes_colunas)
+)
+
+imoveis.head()
+```
 
 ## 1. Compare o MAE da média e da mediana para `rooms` e relacione o resultado à assimetria e ao caráter discreto da variável.
 
@@ -94,3 +116,96 @@ A mediana teve MAE menor que a média, como esperado, porque a mediana minimiza 
 A diferença é pequena, cerca de 0,06 quarto, porque a assimetria de rooms é leve e a cauda é curta, então média e mediana ficam próximas. 
 
 A mediana imputa 2 quartos e acertou 32,5% dos imóveis, que são os que de fato têm 2 quartos. A média imputa cerca de 2,26 quartos, um valor que não existe, e por isso não acertou nenhum imóvel. Para variáveis discretas, como nesse caso, a mediana é a melhor escolha entre as duas.
+
+## 2. Impute o aluguel por `tier` e `zona`. Depois, use o bairro como grupo e discuta o efeito de grupos pequenos.
+
+```{python}
+aluguel_real = imoveis["rent_amount"]
+aluguel_real.isna().sum()
+```
+
+A coluna de aluguéis não possui nenhum registro faltante, então pode servir de gabarito.
+
+```{python}
+rng = np.random.default_rng(42)
+
+aluguel_faltante = aluguel_real.mask(rng.random(len(aluguel_real)) < .20)
+
+apagados_aluguel = aluguel_faltante.isna()
+
+print(f"{apagados_aluguel.sum()} - {apagados_aluguel.mean():.1%}")
+```
+
+Apagamos aleatoriamente cerca de 20% dos aluguéis para realizar a imputação.
+
+```{python}
+aluguel_mediana = aluguel_faltante.median()
+aluguel_mediana
+```
+
+```{python}
+aluguel_real.median()
+```
+
+A mediana global da coluna com dados faltantes subiu apenas 10 reais em relação à coluna original.
+
+```{python}
+def imputa_por_grupo(grupos):
+    return (
+        aluguel_faltante
+        .groupby([imoveis[g] for g in grupos])
+        .transform(lambda x: x.fillna(x.median()))
+        .fillna(aluguel_mediana)
+    )
+```
+
+Função que preenche cada lacuna com a mediana do grupo do imóvel. Se um grupo ficar sem nenhum aluguel observado, usa a mediana global.
+
+```{python}
+aluguel_tier_zona = imputa_por_grupo(["tier", "zona"])
+aluguel_bairro = imputa_por_grupo(["bairro"])
+```
+
+Imputamos o aluguel pela mediana de cada combinação de `tier` e `zona`, e depois pela mediana de cada bairro.
+
+```{python}
+gabarito_aluguel = aluguel_real[apagados_aluguel]
+
+(
+    pd.Series(
+        {
+            "Mediana global": (gabarito_aluguel - aluguel_mediana).abs().mean(),
+            "Mediana por tier e zona": (gabarito_aluguel - aluguel_tier_zona[apagados_aluguel]).abs().mean(),
+            "Mediana por bairro": (gabarito_aluguel - aluguel_bairro[apagados_aluguel]).abs().mean(),
+        },
+        name="MAE (R$)",
+    )
+    .round(2)
+    .to_frame()
+)
+```
+
+Imputar por grupo reduziu bastante o erro comparado à imputar pela mediana global apenas. Em relação a imputar por tier+zona  e imputaar por bairro, o bairro deu um retorno melhor,  com uma diferença de aproximadamente R$67,00, mostrando que, nesse caso, dividir a base em muitos grupos menores trouxe pouco ganho de precisão.
+
+```{python}
+pd.DataFrame(
+    {
+        "tier e zona": imoveis.groupby(["tier", "zona"]).size().describe(),
+        "bairro": imoveis.groupby("bairro").size().describe(),
+    }
+).round(1)
+```
+
+Há 16 combinações de tier e zona, com no mínimo 371 imóveis cada, e 85 bairros, com no mínimo 310 imóveis cada. Os bairros têm tamanhos muito parecidos, entre 310 e 391 imóveis, então nesta base não existem grupos realmente pequenos. Mesmo após apagar 20% dos aluguéis, cada bairro ainda tem cerca de 250 valores observados, suficientes para uma mediana estável. Por isso o bairro conseguiu o menor MAE.
+
+```{python}
+(
+    imoveis
+    .groupby("bairro")
+    .agg(imoveis=("bairro", "size"))
+    .sort_values("imoveis")
+    .head(10)
+)
+```
+
+Como menores bairros têm mais de 300 imóveis, confirma que nesta base não tem grupos pequenos. 
