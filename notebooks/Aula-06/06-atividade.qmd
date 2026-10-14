@@ -209,3 +209,68 @@ Há 16 combinações de tier e zona, com no mínimo 371 imóveis cada, e 85 bair
 ```
 
 Como menores bairros têm mais de 300 imóveis, confirma que nesta base não tem grupos pequenos. 
+
+
+## 3. Entre apartamentos, compare log1p, Box-Cox e Yeo-Johnson para hoa. Qual produz menor assimetria? Qual você apresentaria a um gestor?
+
+
+```{python}
+apartamentos = imoveis[imoveis["floor"].notna()]
+hoa = apartamentos["hoa"].dropna()
+
+pd.Series(
+    {
+        "apartamentos": len(apartamentos),
+        "hoa ausente": apartamentos["hoa"].isna().sum(),
+        "hoa igual a zero": (hoa == 0).sum(),
+    },
+    name="quantidade",
+).to_frame()
+```
+
+Para começar, registramos apartamentos apenas aqueles que possui andar informado.
+São 25.024 apartamentos, dos quais 505 não têm condomínio (hoa) informado. Esses valores foram removidos da série hoa. 
+Nenhum apartamento tem condomínio igual a zero, ou seja, todos os que informaram o condomínio pagam algum valor, logo é positivo.
+
+```{python}
+hoa_boxcox, lambda_boxcox = stats.boxcox(hoa[hoa > 0])
+hoa_yeojohnson, lambda_yeojohnson = stats.yeojohnson(hoa)
+
+hoa_transformado = {
+    "Original": hoa,
+    "log1p": np.log1p(hoa),
+    f"Box-Cox (λ={lambda_boxcox:.2f})": hoa_boxcox,
+    f"Yeo-Johnson (λ={lambda_yeojohnson:.2f})": hoa_yeojohnson,
+}
+```
+
+Aplicamos as três transformações ao condomínio. O log1p e o Yeo-Johnson aceitam zero, mas o Box-Cox não, por isso ele foi aplicado só nos condomínios positivos.
+
+```{python}
+fig, axes = plt.subplots(1, 4, figsize=(18, 4))
+
+for ax, (nome, valores) in zip(axes, hoa_transformado.items()):
+    sns.histplot(valores, bins=50, ax=ax, color="#8172B2")
+    ax.set(
+        title=f"{nome}\nassimetria = {stats.skew(valores):.2f}",
+        xlabel="Escala",
+        ylabel="Apartamentos",
+    )
+
+plt.tight_layout()
+plt.show()
+```
+
+O condomínio original tem cauda longa à direita (assimetria de 2,13) e as três transformações praticamente eliminam essa cauda, e os histogramas ficam quase simétricos e com formato parecido. 
+O Box-Cox estimou λ = -0,09, muito próximo de zero, o que indica que a melhor transformação é quase um logaritmo. O Yeo-Johnson deu o mesmo resultado, mostrando que somar 1 a condomínios de centenas de reais não faz diferença.
+
+```{python}
+pd.Series(
+    {nome: stats.skew(valores) for nome, valores in hoa_transformado.items()},
+    name="assimetria",
+).round(3).to_frame()
+```
+
+Box-Cox e Yeo-Johnson produziram a menor assimetria (0,00), porque estimam o λ justamente para aproximar a distribuição da normal. O log1p ficou muito perto (0,15), uma diferença pequena na prática. Só que sabendo que outros produzem uma assimetria "melhor", melhor escolher os outros.
+
+Eu apresentaria ao gestor uma delas, por deixarem a distribuição mais simétrica e serem mais adequadas para análises e modelos. Porém se for considerar a complexidade, seria melhor explicar o log para ele, com valores já em reais.
