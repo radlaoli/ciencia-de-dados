@@ -143,3 +143,111 @@ pd.Series(
 ```
 
 Os dois métodos chegam a conclusões opostas. O teste t, baseado em médias e desvios-padrão, é afetado pelo carro de 60 mpg, porque a média dos automáticos sobe, o desvio-padrão quase triplica, e o p-valor passa de 0,05. A permutação com medianas é robusta ao valor atípico, porque a mediana quase não se altera, e continua indicando diferença significativa (p ≈ 0,021). Quando há suspeita de erros ou extremos, a mediana com permutação é uma alternativa mais segura que o teste t.
+
+## 2. Na base de imóveis da Aula 6, compare o aluguel de imóveis mobiliados e não mobiliados. Calcule e o p-valor por permutação e pelo teste t. Repita a análise com o log do aluguel e discuta as diferenças.
+
+```{python}
+imoveis.head()
+```
+
+```{python}
+aluguel_mobiliados = imoveis.loc[imoveis.furniture == 'furnished', 'rent_amount']
+aluguel_nao_mobiliados = imoveis.loc[imoveis.furniture == 'not furnished', 'rent_amount']
+```
+
+Separando o alugel dos imoveis mobiliados e não mobiliados
+
+```{python}
+dif_obs = np.mean(aluguel_mobiliados) - np.mean(aluguel_nao_mobiliados)
+np.round(dif_obs, 2)
+```
+
+Cálculo da diferença observada.
+
+```{python}
+def permutation_null(values, labels, n_perm=10_000, seed=2026):
+    rng = np.random.default_rng(seed)
+    null = []
+    for _ in range(n_perm):
+        shuffled = rng.permutation(labels)
+        null.append(values[shuffled].mean() - values[~shuffled].mean())
+    return np.array(null)
+```
+
+Função para montar a distribuição nula (permutação dos rótulos).
+
+```{python}
+alugueis = imoveis.rent_amount.to_numpy()
+imoveis_mobiliados = (imoveis["furniture"] == 'furnished').to_numpy() 
+
+dist_nula = permutation_null(alugueis, imoveis_mobiliados)
+alugueis_p = np.mean(np.abs(dist_nula) >= np.abs(dif_obs))
+alugueis_p
+```
+
+Nenhuma das 10.000 permutações produziu uma diferença de médias tão grande quanto a observada (R$ 549,83). A maior diferença gerada pelo acaso foi de cerca de R$ 210. Portanto, p < 0,0001 e rejeitamos a hipótese nula, a diferença de aluguel entre imóveis mobiliados e não mobiliados dificilmente é resultado do acaso.
+
+
+```{python}
+alugueis_ttest = stats.ttest_ind(
+    aluguel_mobiliados,
+    aluguel_nao_mobiliados,
+    equal_var=False,
+)
+
+alugueis_ttest
+```
+
+Agora vamos calcular o p utilizando o test t.
+
+```{python}
+alugueis_ttest.pvalue
+```
+
+Como pede na atividade, vamos olhar o p específicamente. E percebemos que deu, no fim das contas, o mesmo resultado da permutação, um número absurdamente pequeno, muito próximo de 0. Portanto, levando a rejeição da hipotese nula.
+
+```{python}
+log_mobiliados = np.log(aluguel_mobiliados)
+log_nao_mobiliados = np.log(aluguel_nao_mobiliados)
+log_alugueis = np.log(alugueis)
+
+dif_obs_log = log_mobiliados.mean() - log_nao_mobiliados.mean()
+np.round(dif_obs_log, 4)
+```
+
+Log do aluguel e sua diferença observada.
+
+```{python}
+dist_nula_log = permutation_null(log_alugueis, imoveis_mobiliados, n_perm=2_000)
+p_log = np.mean(np.abs(dist_nula_log) >= np.abs(dif_obs_log))
+p_log
+```
+
+Peermutação na escala log e seu valor de  p, também baixíssimo.
+
+```{python}
+log_ttest = stats.ttest_ind(log_mobiliados, log_nao_mobiliados, equal_var=False)
+log_ttest
+```
+
+Teste t na escala log.
+
+```{python}
+np.round((np.exp(dif_obs_log) - 1) * 100, 1)
+```
+
+Interpretando a diferença em log como porcentagem
+
+```{python}
+pd.DataFrame(
+    {
+        "diferença observada": [dif_obs, dif_obs_log],
+        "t (Welch)": [alugueis_ttest.statistic, log_ttest.statistic],
+        "p (teste t)": [alugueis_ttest.pvalue, log_ttest.pvalue],
+        "p (permutação)": [alugueis_p, p_log],
+    },
+    index=["aluguel (R$)", "log do aluguel"],
+)
+```
+
+A tabela resume os testes nas duas escalas. Na original, os mobiliados pagam em média R$ 549,83 a mais, na escala log, a diferença de 0,15 corresponde a um aluguel cerca de 16% maior. Os dois métodos rejeitam H₀ nas duas escalas. O t é maior na escala log porque o log reduz o peso dos aluguéis muito altos, que inflavam o erro-padrão.
