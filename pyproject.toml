@@ -1,7 +1,7 @@
 [project]
-name = "projeto-imoveis-sp"
+name = "ciencia-de-dados"
 version = "0.1.0"
-description = "Add your description here"
+description = "Ambiente para as aulas práticas e atividades de Ciência de Dados"
 readme = "README.md"
 authors = [
     { name = "radla", email = "radlaoliveira5@gmail.com" }
