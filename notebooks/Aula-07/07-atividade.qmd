@@ -1,4 +1,4 @@
-# Para casa da Aula 6
+# Para casa da Aula 7
 
 ## Preparando o Ambiente
 
@@ -42,3 +42,104 @@ imoveis = (
 
 imoveis.head()
 ```
+
+
+
+## 1. Adapte `permutation_null` para usar a diferença de medianas. Aplique-a ao cenário com o automático de 60 mpg e compare o p-valor com o do teste t da seção 5.5.
+
+```{python}
+def permutation_null_median(values, labels, n_perm=10_000, seed=2026):
+    rng = np.random.default_rng(seed)
+    null = []
+    for _ in range(n_perm):
+        shuffled = rng.permutation(labels)
+        null.append(np.median(values[shuffled]) - np.median(values[~shuffled]))
+    return np.array(null)
+```
+
+Adaptando o `permutation_null` para usar a mediana.
+
+```{python}
+manual = mtcars.loc[mtcars.am == 1 , "mpg"]
+automatico = mtcars.loc[mtcars.am == 0 , "mpg"]
+```
+
+Separando o mpg de cada tipo de cambio.
+
+```{python}
+automatico_erro = (
+    pd.concat(
+        [automatico, pd.Series([60.])],
+        ignore_index=True,
+    )
+)
+```
+
+simulando, como na aula, o erro de digitação nos automaticos, adicionando um carro com 60 mpg.
+
+```{python}
+def compare(group_a, group_b):
+    test = stats.ttest_ind(group_a, group_b, equal_var=False)
+    return {
+        "dif_medias": group_a.mean() - group_b.mean(),
+        "dif_medianas": group_a.median() - group_b.median(),
+        "dp_automaticos": group_b.std(),
+        "t": test.statistic,
+        "p": test.pvalue,
+    }
+
+(
+    pd.DataFrame(
+        {
+            "mtcars original": compare(manual, automatico),
+            "+1 automático com 60 mpg": compare(manual, automatico_erro),
+        }
+    )
+    .T
+    .round(4)
+)
+```
+
+O carro de 60 mpg derrubou a diferença de médias de 7,24 para 5,10 mpg e fez o p-valor do teste t subir de 0,0014 para cerca de 0,085, acima de 0,05. Com o erro, o teste t deixa de rejeitar a hipótese nula. Já a diferença de medianas mudou pouco, de 5,50 para 5,25 mpg, porque a mediana depende só da ordem dos valores.
+
+```{python}
+mtcars_erro = pd.concat(
+    [mtcars, pd.DataFrame({"mpg": [60.], "am": [0]})],
+    ignore_index=True,
+)
+
+valores = mtcars_erro["mpg"].to_numpy()
+rotulos = (mtcars_erro["am"] == 1).to_numpy()
+```
+
+Acrescentamos o carro de 60 mpg na base e montamos os arrays de valores e de rótulos .
+
+```{python}
+delta_mediana = manual.median() - automatico_erro.median()
+
+round(delta_mediana, 2)
+```
+
+A diferença observada de medianas é de 5,25 mpg a favor dos manuais.
+
+```{python}
+null_mediana = permutation_null_median(valores, rotulos)
+
+p_mediana = np.mean(np.abs(null_mediana) >= abs(delta_mediana))
+
+p_mediana
+```
+
+Em cerca de 2% das 10.000 permutações, o acaso produziu uma diferença de medianas tão grande quanto a observada. Como p ≈ 0,021 < 0,05, rejeitamos a hipótese nula.
+
+```{python}
+pd.Series(
+    {
+        "teste t (Welch)": compare(manual, automatico_erro)["p"],
+        "permutação com medianas": p_mediana,
+    },
+    name="p-valor",
+).round(4).to_frame()
+```
+
+Os dois métodos chegam a conclusões opostas. O teste t, baseado em médias e desvios-padrão, é afetado pelo carro de 60 mpg, porque a média dos automáticos sobe, o desvio-padrão quase triplica, e o p-valor passa de 0,05. A permutação com medianas é robusta ao valor atípico, porque a mediana quase não se altera, e continua indicando diferença significativa (p ≈ 0,021). Quando há suspeita de erros ou extremos, a mediana com permutação é uma alternativa mais segura que o teste t.
