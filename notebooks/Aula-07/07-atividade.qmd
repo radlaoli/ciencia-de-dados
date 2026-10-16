@@ -251,3 +251,53 @@ pd.DataFrame(
 ```
 
 A tabela resume os testes nas duas escalas. Na original, os mobiliados pagam em média R$ 549,83 a mais, na escala log, a diferença de 0,15 corresponde a um aluguel cerca de 16% maior. Os dois métodos rejeitam H₀ nas duas escalas. O t é maior na escala log porque o log reduz o peso dos aluguéis muito altos, que inflavam o erro-padrão.
+
+## 3. Ainda na base de imóveis, a diferença de aluguel entre mobiliados e não mobiliados poderia ser explicada por outra variável? Proponha um confundidor e verifique sua hipótese com um gráfico.
+
+Como confundidor, eu sugeriria o `tier`, porque os imóveis de padrão mais alto poderiam vir mobiliados com mais frequência e, ao mesmo tempo, ter aluguel mais alto.
+
+```{python}
+# ordem dos tiers pelo aluguel mediano -> mais parato para mais caro
+ordem_tier = imoveis.groupby("tier").rent_amount.median().sort_values().index
+
+# proporção de mobiliados em cada tier
+prop_mobiliados = (
+    imoveis
+    .assign(mobiliado=lambda df: df["furniture"] == "furnished")
+    .groupby("tier")
+    .mobiliado
+    .mean()
+    .reindex(ordem_tier)
+)
+
+# aluguel mediano em cada tier
+aluguel_tier = imoveis.groupby("tier").rent_amount.median().reindex(ordem_tier)
+
+pd.DataFrame(
+    {
+        "proporção de mobiliados": prop_mobiliados.round(3),
+        "aluguel mediano (R$)": aluguel_tier.round(0),
+    }
+)
+```
+
+
+```{python}
+fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
+
+prop_mobiliados.plot.bar(ax=axes[0], color="#A1C9F4")
+axes[0].set(title="Proporção de mobiliados por tier", xlabel="",
+            ylabel="Proporção de mobiliados")
+axes[0].tick_params(axis="x", rotation=0)
+
+sns.boxplot(data=imoveis, x="tier", y="rent_amount", order=ordem_tier,
+            ax=axes[1], color="#A1C9F4", showfliers=False)
+axes[1].set(title="Aluguel por tier", xlabel="", ylabel="Aluguel (R$)")
+
+plt.tight_layout()
+plt.show()
+```
+
+O gráfico da direita confirma a hipotese de que o aluguel mediano sobe de R$ 1.340 nos imóveis affordable para R$ 7.280 nos luxury. Mas a primeira ligação não se sustenta, a proporção de mobiliados é praticamente a mesma em todos os tiers. Como a mobília está distribuída igualmente entre os padrões de imóvel, o tier não explica a diferença de R$ 549,83 no aluguel.
+
+Assim como a área, o tier influencia fortemente o aluguel, mas não está associado à mobília, e por isso,provavelmente, não é confundidor.
