@@ -170,5 +170,86 @@ Hipóteses:
 H₀: as massas médias de Adelie e Gentoo são iguais (μ₁ = μ₂).   
 H₁: são diferentes (μ₁ ≠ μ₂).
 
-Os Gentoo pesam em média 5.076 g, e os Adelie, 3.701 g: uma diferença de cerca de 1.375 g. O teste deu t ≈ 23,6, com 272 graus de liberdade e p < 0,001, e o intervalo de confiança de 95% da diferença vai de 1.260,69 a 1.490,02 g, longe de zero.  
+Os Gentoo pesam em média 5.076 g, e os Adelie, 3.701 g:, uma diferença de cerca de 1.375 g. O teste deu t ≈ 23,6, com 272 graus de liberdade e p < 0,001, e o intervalo de confiança de 95% da diferença vai de 1.260,69 a 1.490,02 g, longe de zero.  
 Rejeitamos H₀, os pinguins Gentoo são, em média, bem mais pesados que os Adelie.
+
+
+## 2. Aplique a ANOVA do caso 4 ao comprimento da pétala (petal_length). O que o teste de Levene indica? Compare o resultado com o teste de Kruskal-Wallis (stats.kruskal).
+
+Como a questão já define o uso da ANOVA, verificaremos apenas a homocedasticidade com o teste de Levene, como pede o enunciado.
+
+Hipóteses  
+H₀: as três espécies têm o mesmo comprimento médio de pétala.  
+H₁: pelo menos uma espécie tem média diferente.
+
+```{python}
+iris.head()
+```
+
+```{python}
+(
+    iris
+    .groupby('species')
+    .petal_length
+    .agg(['size', 'mean', 'median', 'std'])
+    .round(2)
+)
+```
+
+As três espécies têm o mesmo número de flores.
+
+A setosa, em média, tem pétalas muito menores (1,46 cm) do que a versicolor (4,26 cm) e a virginica (5,55 cm).   
+Em todas as espécies, média e mediana são praticamente iguais (diferenças de no máximo 0,09 cm), o que sugere distribuições aproximadamente simétricas.   
+Já a dispersão varia bastante, o desvio-padrão vai de 0,17 cm na setosa a 0,55 cm na virginica, mais de três vezes maior. 
+Isso indica que as variâncias podem não ser iguais.
+
+```{python}
+# Comprimento da pétala por espécie
+fig, ax = plt.subplots(figsize=(7, 4.5))
+plot_group_means(iris, "species", "petal_length",
+                 ["setosa", "versicolor", "virginica"],
+                 "Comprimento da pétala (cm)", ax)
+plt.tight_layout()
+plt.show()
+```
+
+O gráfico mostra o comprimento da pétala de cada flor e a média de cada espécie. A setosa fica totalmente isolada, com pétalas bem menores e muito concentradas. A versicolor e a virginica têm pétalas maiores e mais espalhadas, com alguma sobreposição entre elas. Visualmente, as dispersões parecem diferentes entre as espécies, o que ainda será verificado com o teste de Levene.
+
+```{python}
+# Separando por especie
+
+setosa = iris.loc[iris['species'] == 'setosa', "petal_length"]
+versicolor = iris.loc[iris['species'] == 'versicolor', "petal_length"]
+virginica = iris.loc[iris['species'] == 'virginica', "petal_length"]
+```
+
+```{python}
+report("Levene", stats.levene(setosa, versicolor, virginica))
+```
+
+H₀: as variâncias das três espécies são iguais. 
+H₁: pelo menos uma variância é diferente.
+
+O teste de Levene deu estatística ≈ 19,5 e p < 0,001.  
+Rejeitamos H₀, pois as variâncias não são iguais, o que confirma o que a tabela já sugeria.   
+A premissa de homocedasticidade da ANOVA clássica está violada, e o p-valor dela pode ficar menos confiável.
+
+```{python}
+report("ANOVA", stats.f_oneway(setosa, versicolor, virginica), stat="F", df=(2, 147))
+report("Kruskal-Wallis", stats.kruskal(setosa, versicolor, virginica), stat="H")
+```
+
+```{python}
+print(stats.tukey_hsd(setosa, versicolor, virginica))
+```
+
+A ANOVA deu F ≈ 1180, com (2, 147) graus de liberdade e p < 0,001, portanto rejeitamos H₀, e pelo menos uma espécie tem comprimento médio de pétala diferente. A espécie explica cerca de 94% da variação. O teste de Tukey indica que os três pares de espécies diferem (p < 0,001 em todos).   
+A setosa tem pétalas cerca de 2,8 cm menores que a versicolor e 4,1 cm menores que a virginica, e a versicolor tem pétalas cerca de 1,3 cm menores que a virginica.   
+Nenhum dos intervalos de confiança contém o zero.   
+A ordem é setosa < versicolor < virginica.
+
+Como o teste de Levene rejeitou a igualdade de variâncias, a premissa de homocedasticidade da ANOVA clássica foi violada.   
+Por isso, comparamos com o teste de Kruskal-Wallis, que não depende dessa premissa, e ele também rejeitou H₀ (H ≈ 130,4, p < 0,001).   
+Como os dois testes concordam, a conclusão é robusta, o comprimento da pétala difere entre as espécies, mesmo com variâncias diferentes.
+
+Diante da violação da homocedasticidade, o Kruskal-Wallis é a opção mais segura, por não depender da igualdade de variâncias. Neste caso, como os dois testes concordam, a conclusão da ANOVA se mantém.
