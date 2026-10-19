@@ -1,0 +1,174 @@
+# Para casa da Aula 8
+
+## Imports e Carregamento da Base
+
+```{python}
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
+
+sns.set_theme(style="whitegrid", palette="colorblind")
+```
+
+```{python}
+iris = pd.read_csv("../../data/iris.csv")
+pinguins = pd.read_csv("../../data/penguins.csv")
+titanic = pd.read_csv("../../data/titanic.csv")
+```
+
+## Funções úteis
+
+```{python}
+# Resume o resultado de um teste em uma linha legível
+def report(name, result, stat="estatística", df=None):
+    if isinstance(result, tuple):
+        value, p = result
+    else:
+        value, p = result.statistic, result.pvalue
+    df = df if df is not None else getattr(result, "df", None)
+
+    parts = [f"{stat} = {value:.3f}"]
+    if df is not None:
+        parts.append(f"gl = {df:.4g}" if np.isscalar(df) else f"gl = {df}")
+    parts.append("p < 0.001" if p < 0.001 else f"p = {p:.3f}")
+    if hasattr(result, "confidence_interval"):
+        ci = result.confidence_interval()
+        parts.append(f"IC 95% [{ci.low:.2f} ; {ci.high:.2f}]")
+
+    print(f"{name}: " + " · ".join(parts))
+```
+
+```{python}
+# Observações e média de cada grupo
+def plot_group_means(data, x, y, order, ylabel, ax):
+    sns.stripplot(data=data, x=x, y=y, order=order, ax=ax,
+                  color="#1F4E79", alpha=.5, jitter=.25)
+    means = data.groupby(x)[y].mean().reindex(order)
+    ax.hlines(means, np.arange(len(order)) - .35, np.arange(len(order)) + .35,
+              color="#DD8452", linewidth=3)
+    ax.set(xlabel="", ylabel=ylabel)
+```
+
+## 1. Repita o caso 2 comparando a massa corporal das espécies Adelie e Gentoo. Verifique as premissas antes de escolher entre o t clássico e o de Welch.
+
+```{python}
+pinguins.head()
+```
+
+```{python}
+adelie_gentoo = (
+    pinguins
+    .loc[pinguins["species"].isin(["Adelie", "Gentoo"])]
+    .dropna(subset=["body_mass"])
+)
+
+# Massa corporal de cada espécie
+adelie = adelie_gentoo.loc[adelie_gentoo["species"] == "Adelie", "body_mass"]
+gentoo = adelie_gentoo.loc[adelie_gentoo["species"] == "Gentoo", "body_mass"]
+```
+
+Pinguins Adelie e Gentoo com massa registrada
+
+- Para poder utilizar o teste paramétrico adequadamente, vamos analisar se os prérequisitos estão sendo cumpridos.
+
+```{python}
+(
+    adelie_gentoo
+    .groupby('species')
+    .body_mass
+    .agg(['size','mean', 'median', 'std'])
+    .round(2)
+)
+```
+
+Foram analisados 151 pinguins Adelie e 123 Gentoo. Os Gentoo são bem mais pesados, tendo uma média de 5.076 g, contra 3.701 g dos Adelie, uma diferença de cerca de 1.375 g. O desvio-padrão dos Gentoo (504 g) é um pouco maior que o dos Adelie (459 g), o teste de Levene vai indicar se essa diferença é relevante.
+
+Em cada espécie, média e mediana são muito próximas, o que sugere distribuições aproximadamente simétricas, sem valores extremos distorcendo a média.
+
+```{python}
+# Massa corporal de Adelie e Gentoo
+fig, ax = plt.subplots(figsize=(6, 4.5))
+plot_group_means(adelie_gentoo, "species", "body_mass", ["Adelie", "Gentoo"],
+                 "Massa corporal (g)", ax)
+plt.tight_layout()
+plt.show()
+```
+
+O gráfico mostra a massa de cada pinguim e a média de cada espécie.   
+Os Gentoo são claramente mais pesados, todos os Adelie ficam abaixo da média dos Gentoo, e todos os Gentoo ficam acima da média dos Adelie. Os grupos se sobrepõem apenas numa faixa intermediária. A dispersão das duas espécies é parecida.
+
+```{python}
+stats.levene(adelie, gentoo)
+```
+
+H₀: as massas corporais das espécies têm a mesma variância.  
+H₁: as massas corporais das espécies têm variâncias distintas.
+
+O teste de Levene não rejeitou a igualdade de variâncias (p ≈ 0,16).
+
+**Homocedasticidade:** Como o teste de Levene não rejeitou a igualdade de variâncias, não há evidência de que as variâncias sejam diferentes, e a premissa de homocedasticidade é aceitável.
+
+**Independência:** Cada linha da base corresponde a um pinguim diferente, medido uma única vez. Assim, a massa de um animal não traz informação sobre a massa de outro, tanto dentro de cada espécie quanto entre as espécies. Os grupos são, portanto, independentes, e não há pareamento.
+
+```{python}
+fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+
+for ax, values, title in zip(
+    axes,
+    [adelie, gentoo],
+    [f"Adelie (n = {len(adelie)})", f"Gentoo (n = {len(gentoo)})"],
+):
+    stats.probplot(values, dist="norm", plot=ax)
+    ax.set(title=title, xlabel="Quantil teórico da normal",
+           ylabel="Quantil da amostra")
+
+plt.tight_layout()
+plt.show()
+```
+
+Apenas pelo Q-Q plot dá uma impressão de estar bem próximo da normalidade, apesar dos extremos do gráfico não seguirem uma linearidade clara.
+
+```{python}
+pd.DataFrame(
+ {
+    "Adelie": stats.shapiro(adelie),
+    "Gentoo": stats.shapiro(gentoo),
+    },
+ index = ["w", 'p']
+).T
+```
+
+H₀: a massa corporal da espécie segue uma distribuição normal.  
+H₁: a massa corporal da espécie não segue uma distribuição normal.
+
+No Gentoo, W = 0,986 e p ≈ 0,23 > 0,05, podemos afirmar visualmente e teoricamente que não rejeitamos a normalidade.
+
+No Adelie, W = 0,981 e p ≈ 0,03 < 0,05, a princípio rejeitamos a normalidade. Porém, o W muito próximo de 1 indica que o desvio é pequeno, e o Q-Q plot mostra que ele se concentra nas pontas, caindo naquele problema que em amostras grandes, pequenos desvios podem modificar bastante o valor de p no Shapiro-Wilk.
+Com 151 observações, o Shapiro-Wilk detecta até desvios irrelevantes. Como a amostra é grande, pelo teorema central do limite a média é aproximadamente normal, e o teste t continua adequado.
+
+**Normalidade:** Com base nessas verificações, podemos usar os testes paramétricos.
+
+- Qual teste usar?
+
+Já vimos que são independentes.  
+Estamos tratando de massas, logo são numéricas contínuas.  
+E no caso, estamos comparando médias dos pesos dos grupos.  
+
+Com base nisso, o teste adequado é o t de duas amostras independentes. Como o teste de Levene não rejeitou a igualdade de variâncias, usamos a versão clássica ou t de Student , com a igualdade de variância.
+
+```{python}
+stats.ttest_ind(gentoo, adelie, equal_var=True)
+```
+
+```{python}
+report("t Clássico", stats.ttest_ind(gentoo, adelie, equal_var=True), stat='t' )
+```
+
+Hipóteses:   
+H₀: as massas médias de Adelie e Gentoo são iguais (μ₁ = μ₂).   
+H₁: são diferentes (μ₁ ≠ μ₂).
+
+Os Gentoo pesam em média 5.076 g, e os Adelie, 3.701 g: uma diferença de cerca de 1.375 g. O teste deu t ≈ 23,6, com 272 graus de liberdade e p < 0,001, e o intervalo de confiança de 95% da diferença vai de 1.260,69 a 1.490,02 g, longe de zero.  
+Rejeitamos H₀, os pinguins Gentoo são, em média, bem mais pesados que os Adelie.
