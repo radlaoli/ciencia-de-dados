@@ -227,3 +227,43 @@ Para transformar os dados em postos, juntamos os dias de internação de todos o
 
 Então, temos 15 postos para as 15 amostras
 
+## Comparando os pares: a estatística U
+
+```{python}
+#| colab: {base_uri: https://localhost:8080/, height: 501}
+# Comparação de cada paciente de A com cada paciente de B
+duels = np.sign(np.subtract.outer(days_a, days_b))
+
+fig, ax = plt.subplots(figsize=(6, 5))
+colors = ListedColormap(["#A1C9F4", "#DDDDDD", "#DD8452"])
+ax.imshow(duels, cmap=colors, vmin=-1, vmax=1)
+for (i, j), value in np.ndenumerate(duels):
+    ax.text(j, i, {-1: "<", 0: "=", 1: ">"}[value], ha="center", va="center")
+ax.set(xticks=range(8), xticklabels=days_b, yticks=range(8), yticklabels=days_a,
+       xlabel="Paciente de B (dias)", ylabel="Paciente de A (dias)")
+ax.grid(False)
+plt.tight_layout()
+plt.show()
+```
+
+Aqui comparamos cada paciente de A com cada paciente de B, nos 64 pares possíveis, marcando se o de A ficou menos (<), o mesmo (=) ou mais (>) dias internado, que é a contagem de duelos para usar no teste não paramétrico.
+
+Em apenas 9 dos 64 duelos o paciente de A ficou mais dias internado que o de B, em 3 houve empate, e nos outros 52 o paciente de B ficou mais tempo. Além disso, 8 dessas 9 vezes vêm de um único paciente, o de 120 dias, que fica acima de todos os pacientes de B. Ou seja, quando comparamos paciente a paciente, o tratamento A leva, na grande maioria das vezes, a internações mais curtas que o B, e o valor extremo, que distorcia a média, aqui conta só como uma linha entre oito.  
+
+```{python}
+#| colab: {base_uri: https://localhost:8080/}
+# Contagem dos pares e estatísticas U de cada grupo
+n_a, n_b = len(days_a), len(days_b)
+a_less, ties_ab, a_more = (duels < 0).sum(), (duels == 0).sum(), (duels > 0).sum()
+
+u_a = a_more + 0.5 * ties_ab
+u_b = a_less + 0.5 * ties_ab
+
+print(f"A < B: {a_less} · empates: {ties_ab} · A > B: {a_more}")
+print(f"U_A = {u_a} · U_B = {u_b} · U_A + U_B = {u_a + u_b} = n_A × n_B")
+```
+
+Somando 1 ponto para cada vitória e 1/2 para cada empate, obtemos U_A = 10,5 e U_B = 53,5, que juntos somam os 64 duelos. Se os tratamentos fossem equivalentes, cada um ficaria com cerca de 32 pontos.
+
+
+O U_A bem abaixo disso indica que os pacientes de A tendem a ficar menos tempo internados que os de B.
