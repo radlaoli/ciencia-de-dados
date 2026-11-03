@@ -202,3 +202,28 @@ Aplicando o teste t (paramétrico) nos dias de cada tratamento, obtemos um t de 
 
 
 Porém, esse resultado não é confiável aqui. O paciente de 120 dias infla muito o desvio-padrão de A, o que aumenta o erro-padrão e deixa o t pequeno, escondendo a diferença que aparece quando olhamos a maioria dos pacientes. Também, com poucos pacientes por grupo e uma distribuição tão assimétrica, a premissa de normalidade do teste t não se sustenta, o que justifica usar um teste não paramétrico.
+
+
+## Construindo os postos
+
+```{python}
+#| colab: {base_uri: https://localhost:8080/, height: 175}
+# Passo 1: juntar os 16 pacientes e ordenar do menor para o maior tempo
+uti_sorted = uti.sort_values("dias", kind="stable").reset_index(drop=True)
+
+# Passo 2: numerar as posições de 1 a 16
+positions = np.arange(1, len(uti_sorted) + 1)
+
+# Passo 3: calcular os postos, com a média das posições nos empates
+ranks = uti_sorted["dias"].rank(method="average")
+
+# Combina os dados ordenados, as posições e os postos em uma tabela
+ranked = uti_sorted.assign(posicao=positions, posto=ranks)
+
+ranked.T
+```
+
+Para transformar os dados em postos, juntamos os dias de internação de todos os pacientes, sem distinguir o tratamento, e ordenamos do menor para o maior. Em seguida, cada observação recebe a sua posição. Quando há empates, os valores empatados recebem a média das posições que ocupariam e depois separamos os postos de novo por tratamento para comparar os dois grupos.
+
+Então, temos 15 postos para as 15 amostras
+
