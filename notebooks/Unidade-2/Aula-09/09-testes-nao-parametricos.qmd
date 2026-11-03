@@ -64,3 +64,47 @@ print(f"z que deixa 2,5% em cada cauda = {stats.norm.ppf(0.975):.2f}")
 A distribuição normal padrão serve para ter uma noção maior quanto à distância de um valor em relação à média, medida em desvios-padrão. Nesse caso a média é 0 e os Z’s variam de −4 a 4, sendo esse o intervalo mostrado no gráfico, mas quase todos os valores ficam bem mais perto do centro: uns 68% entre −1 e 1, 95% entre −2 e 2 e 99,7% entre −3 e 3.
 
 Por isso, quando só tem acaso, um Z maior que 2 já é raro, e o 1,96 é o limite que deixa 2,5% em cada ponta. Como a área da curva é a probabilidade, o p-valor é a soma das duas pontas além do Z encontrado, então quanto mais longe do zero, menor o p-valor.
+
+# Tratamentos A e B, passo a passo
+
+## Os dados
+
+```{python}
+# Tempos de internação dos dois tratamentos, em dias
+days_a = [1, 2, 2, 3, 3, 4, 5, 120]
+days_b = [4, 5, 5, 6, 6, 7, 8, 9]
+
+uti = pd.DataFrame(
+    {
+        "tratamento": ["A"] * len(days_a) + ["B"] * len(days_b),
+        "dias": days_a + days_b,
+    }
+)
+```
+
+Quantidade de dias registrados de internação de cada paciente submetidos a um tratamento A ou um tratamento B
+
+```{python}
+#| colab: {base_uri: https://localhost:8080/, height: 501}
+# Cada paciente em um ponto: escala completa e ampliação de 0 a 10 dias
+fig, axes = plt.subplots(2, 1, figsize=(10, 5), height_ratios=[1, 1.4])
+
+for ax, xlim in zip(axes, [(-3, 125), (0, 10)]):
+    sns.swarmplot(
+        data=uti, x="dias", y="tratamento", hue="tratamento",
+        palette={"A": "#A1C9F4", "B": "#1F4E79"}, size=9,
+        edgecolor="#333333", linewidth=1, legend=False, ax=ax,
+    )
+    ax.set(xlim=xlim, ylabel="")
+
+axes[0].axvspan(0, 10, color="#DDDDDD", alpha=.5)
+axes[0].set(title="Escala completa", xlabel="")
+axes[1].set(title="Ampliação: 0 a 10 dias", xlabel="Dias de internação",
+            xticks=range(11))
+plt.tight_layout()
+plt.show()
+```
+
+A maioria dos pacientes do tratamento A ficou menos tempo internada que os do tratamento B.  
+Em A, os valores vão de 1 a 5 dias, enquanto em B vão de 4 a 9 dias, com sobreposição apenas nos 4 e 5 dias.   
+O que chama atenção é um único paciente do tratamento A que ficou 120 dias internado, muito longe de todos os outros. Esse valor cria uma cauda longa à direita na distribuição de A e pode puxar bastante a média desse grupo para cima, mesmo com quase todos os pacientes de A tendo ficado poucos dias e, em sua maioria, menos que B.
