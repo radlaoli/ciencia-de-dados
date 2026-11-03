@@ -145,3 +145,43 @@ E a mediana, como não é sensível a extremos, ficou condizente com os dias de 
 
 Já o B, como a distribuição tem valores bem próximos/concetrados, a média e mediana deu quase (uma variação mínima e irrisória) o mesmo valor, ficam em média 6 dias internados sob esse tratamento.
 
+## Assimetria e medidas-resumo
+
+```{python}
+#| colab: {base_uri: https://localhost:8080/}
+# Coeficiente de assimetria de cada grupo
+for group in ["A", "B"]:
+    values = uti.loc[uti["tratamento"] == group, "dias"]
+    print(f"Tratamento {group}: assimetria = {stats.skew(values):.2f}")
+```
+
+Como já suspeitado, e agora provado estatisticamente, a assimetria do A é bem maior do que do tratamento B.  
+Além disso, como previsto, a assimetria é positiva, não só de A, como também a de B, logo a assimetria é para a direita. Mas pela magnitude, é bem maior a cauda de A com uma diferença de 1,89.
+
+Como a assimetria de B < 0.5, significa que ele é considerado praticamente simétrico.
+  
+No tratamento A dá pra observar as evidencias dessa assimetria aguda à direita, pois mediana < média ( 3 < 17,5)
+  
+
+```{python}
+#| colab: {base_uri: https://localhost:8080/, height: 144}
+# Média, desvio-padrão, mediana e total de dias por tratamento
+uti_summary = (
+    uti
+    .groupby("tratamento")
+    .dias
+    .agg(["mean", "std", "median", "sum"])
+    .round(2)
+)
+
+uti_summary
+```
+
+Olhando só a média, o tratamento A parece bem pior que o B, porque seus pacientes teriam ficado muito mais tempo internados. Mas essa é uma falsa impressão, as outras medidas mostram que a média de A está sendo puxada por um único paciente.   
+
+O desvio-padrão de A é quase 40 dias maior que o de B, o que indica uma observação muito distante das demais, justamente o paciente que ficou 120 dias internado.  
+
+A mediana confirma isso, como ela não é afetada por esse valor extremo, mostra que o centro das duas distribuições é parecido, e o de A é até um pouco menor que o de B.   
+
+Já o total de dias de internação, assim como a média, soma esse valor extremo e por isso também fica bem maior em A, o que reforça que a diferença vem de uma distribuição assimétrica, e não de um comportamento geral do tratamento.
+
