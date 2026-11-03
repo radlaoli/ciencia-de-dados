@@ -185,3 +185,20 @@ A mediana confirma isso, como ela não é afetada por esse valor extremo, mostra
 
 Já o total de dias de internação, assim como a média, soma esse valor extremo e por isso também fica bem maior em A, o que reforça que a diferença vem de uma distribuição assimétrica, e não de um comportamento geral do tratamento.
 
+## O que diz a comparação de médias
+
+```{python}
+#| colab: {base_uri: https://localhost:8080/}
+# Teste t de Welch comparando os tempos médios
+group_a = uti.loc[uti["tratamento"] == "A", "dias"]
+group_b = uti.loc[uti["tratamento"] == "B", "dias"]
+
+welch_uti = stats.ttest_ind(group_a, group_b, equal_var=False)
+
+report("t de Welch", welch_uti, stat="t")
+```
+
+Aplicando o teste t (paramétrico) nos dias de cada tratamento, obtemos um t de 0,767 e um p de 0,468, significando que não rejeitamos H₀. Pelo teste t, não há evidência de diferença entre as médias de internação dos dois tratamentos.  
+
+
+Porém, esse resultado não é confiável aqui. O paciente de 120 dias infla muito o desvio-padrão de A, o que aumenta o erro-padrão e deixa o t pequeno, escondendo a diferença que aparece quando olhamos a maioria dos pacientes. Também, com poucos pacientes por grupo e uma distribuição tão assimétrica, a premissa de normalidade do teste t não se sustenta, o que justifica usar um teste não paramétrico.
