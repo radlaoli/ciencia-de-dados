@@ -108,3 +108,40 @@ plt.show()
 A maioria dos pacientes do tratamento A ficou menos tempo internada que os do tratamento B.  
 Em A, os valores vão de 1 a 5 dias, enquanto em B vão de 4 a 9 dias, com sobreposição apenas nos 4 e 5 dias.   
 O que chama atenção é um único paciente do tratamento A que ficou 120 dias internado, muito longe de todos os outros. Esse valor cria uma cauda longa à direita na distribuição de A e pode puxar bastante a média desse grupo para cima, mesmo com quase todos os pacientes de A tendo ficado poucos dias e, em sua maioria, menos que B.
+
+
+## As distribuições de cada grupo
+
+```{python}
+#| colab: {base_uri: https://localhost:8080/, height: 473}
+# Histogramas com o eixo interrompido entre 10 e 115 dias
+fig, axes = plt.subplots(2, 2, figsize=(11, 5), sharey=True,
+                         gridspec_kw={"width_ratios": [4, 1]})
+
+for row, (group, color) in zip(axes, [("A", "#A1C9F4"), ("B", "#1F4E79")]):
+    values = uti.loc[uti["tratamento"] == group, "dias"]
+    for ax, (low, high) in zip(row, [(0, 10), (115, 125)]):
+        ax.hist(values, bins=np.arange(low - .5, high + 1), color=color,
+                edgecolor="white")
+        ax.set_xlim(low - .5, high + .5)
+        for stat, style, label in [(values.mean(), "-", "média"),
+                                   (values.median(), "--", "mediana")]:
+            if low <= stat <= high:
+                ax.axvline(stat, color="#DD8452", linestyle=style, linewidth=2,
+                           label=label)
+    row[0].set(ylabel=f"Tratamento {group}\n(pacientes)", yticks=[0, 1, 2])
+
+axes[0, 0].annotate("média = 17,5 →", xy=(10.4, 1.6), ha="right",
+                   color="#DD8452")
+axes[1, 0].legend(loc="upper left")
+axes[1, 0].set_xlabel("Dias de internação (0 a 10)")
+axes[1, 1].set_xlabel("115 a 125")
+fig.subplots_adjust(wspace=.05, hspace=.3)
+plt.show()
+```
+
+Como já discuti, a média ficou bem alta devido ao paciente outlier que ficou 120 dias internado, por mais que os outros tenham ficado bem menos.
+E a mediana, como não é sensível a extremos, ficou condizente com os dias de internação dos demais pacientes (3 dias).
+
+Já o B, como a distribuição tem valores bem próximos/concetrados, a média e mediana deu quase (uma variação mínima e irrisória) o mesmo valor, ficam em média 6 dias internados sob esse tratamento.
+
