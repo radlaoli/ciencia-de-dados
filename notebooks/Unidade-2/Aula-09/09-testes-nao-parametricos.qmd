@@ -30,4 +30,37 @@ def report(name, result, stat="estatística"):
     print(f"{name}: " + " · ".join(parts))
 ```
 
+# Recaptulação
 
+## Revisão Estendida: A distribuição Z
+
+```{python}
+#| colab: {base_uri: https://localhost:8080/, height: 381}
+# Normal padrão com as faixas de 1, 2 e 3 desvios-padrão
+grid = np.linspace(-4, 4, 400)
+density = stats.norm.pdf(grid)
+
+fig, ax = plt.subplots(figsize=(9, 3.8))
+ax.plot(grid, density, color="#1F4E79", linewidth=2)
+for k, color in [(3, "#DDEBF7"), (2, "#A1C9F4"), (1, "#5B9BD5")]:
+    area = stats.norm.cdf(k) - stats.norm.cdf(-k)
+    ax.fill_between(grid, density, where=np.abs(grid) <= k, color=color,
+                    label=f"entre −{k} e +{k}: {area:.1%}")
+ax.set(xlabel="z (desvios-padrão a partir da média)", ylabel="Densidade",
+       xticks=range(-4, 5))
+ax.legend(loc="upper right")
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
+#| colab: {base_uri: https://localhost:8080/}
+# Áreas da normal padrão e o caminho inverso, da área para o z
+print(f"P(Z ≤ −2) = {stats.norm.cdf(-2):.4f}")
+print(f"P(Z ≥ +2) = {stats.norm.sf(2):.4f}")
+print(f"z que deixa 2,5% em cada cauda = {stats.norm.ppf(0.975):.2f}")
+```
+
+A distribuição normal padrão serve para ter uma noção maior quanto à distância de um valor em relação à média, medida em desvios-padrão. Nesse caso a média é 0 e os Z’s variam de −4 a 4, sendo esse o intervalo mostrado no gráfico, mas quase todos os valores ficam bem mais perto do centro: uns 68% entre −1 e 1, 95% entre −2 e 2 e 99,7% entre −3 e 3.
+
+Por isso, quando só tem acaso, um Z maior que 2 já é raro, e o 1,96 é o limite que deixa 2,5% em cada ponta. Como a área da curva é a probabilidade, o p-valor é a soma das duas pontas além do Z encontrado, então quanto mais longe do zero, menor o p-valor.
