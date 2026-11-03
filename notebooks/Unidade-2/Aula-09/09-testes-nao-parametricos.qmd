@@ -267,3 +267,48 @@ Somando 1 ponto para cada vitória e 1/2 para cada empate, obtemos U_A = 10,5 e 
 
 
 O U_A bem abaixo disso indica que os pacientes de A tendem a ficar menos tempo internados que os de B.
+
+
+## O atalho pela soma dos postos
+
+```{python}
+#| colab: {base_uri: https://localhost:8080/, height: 381}
+# Histograma dos postos de cada tratamento
+fig, axes = plt.subplots(1, 2, figsize=(12, 3.8), sharex=True, sharey=True)
+
+for ax, (group, color) in zip(axes, [("A", "#A1C9F4"), ("B", "#1F4E79")]):
+    ranks = ranked.loc[ranked["tratamento"] == group, "posto"]
+    counts = ranks.value_counts()
+    ax.bar(counts.index, counts.values, width=.8, color=color)
+    ax.set(title=f"Tratamento {group}: soma dos postos = {ranks.sum():g}",
+           xlabel="Posto", xticks=range(1, 17))
+
+axes[0].set_ylabel("Pacientes")
+plt.tight_layout()
+plt.show()
+```
+
+O histograma mostra que os postos de A se concentram nas primeiras posições, com exceção do paciente de 120 dias, que ocupa o último posto (16). Nos dois tratamentos aparecem duas barras com dois pacientes, que são os empates. Os valores empatados recebem o mesmo posto, igual à média das posições que ocupariam.
+
+Os de B ocupam mais a segunda metade da divisão dos postos, mostrando que em geral, B tem uma frequência maior de números de dias altos de internação.
+
+A soma dos postos de A (46,5) é bem menor que a de B (89,5), confirmando que os pacientes de A tendem a ficar menos tempo internados.
+
+  Nos postos, o valor extremo de 120 dias vale apenas uma posição acima do maior valor de B, não distorcendo a comparação.
+
+```{python}
+#| colab: {base_uri: https://localhost:8080/}
+# Soma dos postos de cada grupo e U pela fórmula
+w_a = ranked.loc[ranked["tratamento"] == "A", "posto"].sum()
+w_b = ranked.loc[ranked["tratamento"] == "B", "posto"].sum()
+N = len(ranked)
+minimum = n_a * (n_a + 1) / 2
+
+print(f"W_A = {w_a} · W_B = {w_b} · total = {w_a + w_b} = N(N + 1)/2")
+print(f"U_A = {w_a} − {minimum} = {w_a - minimum}")
+print(f"U_B = {w_b} − {minimum} = {w_b - minimum}")
+```
+
+Somando os postos, obtemos W_A = 46,5 e W_B = 89,5, que juntos dão 136, a soma de todos os postos de 1 a 16.
+
+Subtraindo de cada soma o menor valor possível para um grupo de 8 pacientes (36), chegamos a U_A = 10,5 e U_B = 53,5, os mesmos valores encontrados na contagem dos duelos. Ou seja, a soma dos postos é outra maneira de alcançar o U, sem precisar comparar paciente por paciente.
