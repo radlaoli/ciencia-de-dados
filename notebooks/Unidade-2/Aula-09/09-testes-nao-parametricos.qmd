@@ -364,3 +364,78 @@ report("Mann-Whitney", mw_uti, stat="U")
 ```
 
 Usando o SciPy confirma o cálculo anterior, U = 10,5 e p = 0,027. O resultado contrasta com o do teste t, que deu p = 0,468 e não encontrou diferença. A diferença vem do paciente de 120 dias, no teste t, ele inflava a média e o desvio-padrão de A e escondia o efeito, no Mann-Whitney, ele conta só como mais um posto, e o padrão da maioria dos pacientes aparece.
+
+# Caso 1. Mann-Whitney em um teste A/B
+
+H0 -> Nenhum layout tem preferência  
+H1 -> Um layout é mais chamativo ou intuitivo que o outro, logo, o clique ao entrar é mais rápido
+
+**Critérios:**
+
+- Têm que ser observações independentes
+- Têm que ser distribuições semelhantes.
+- Têm que ser valores ordinais
+
+```{python}
+# Segundos até o primeiro clique em cada layout
+layout_a = [2.1, 2.8, 3.0, 3.4, 3.7, 4.2, 4.6, 14.0]
+layout_b = [3.9, 4.8, 5.0, 5.8, 6.1, 6.9, 7.7, 9.5]
+```
+
+Aqui separamos o tempo até dar o primeiro clique em cada um dos layouts
+
+```{python}
+# Tempo até o primeiro clique por layout
+clicks = pd.DataFrame(
+    {"layout": ["A"] * 8 + ["B"] * 8, "segundos": layout_a + layout_b}
+)
+
+fig, ax = plt.subplots(figsize=(6, 4.5))
+sns.boxplot(data=clicks, x="layout", y="segundos", color="#A1C9F4",
+            showfliers=False, ax=ax)
+sns.stripplot(data=clicks, x="layout", y="segundos", color="#1F4E79",
+              size=7, jitter=.15, ax=ax)
+ax.set(xlabel="Layout", ylabel="Tempo até o primeiro clique (s)")
+plt.tight_layout()
+plt.show()
+```
+
+No boxplot identificamos que a concentração de pontos do layout A está mais concentrado e encontra-se na região de menos tempo até clicar do que o B, indicando possivelmente leva menos tempo para o clique. No entanto há uma observação do layout A que levou bem mais tempo para realizar o clique, indicando um possível outlier.  
+Apesar dos pontos de A ocuparem uma parte baixa do tempo, algumas observações de B se sobrepõe a algumas de A.
+
+```{python}
+# Postos, U, z e p-valor pela aproximação normal
+def mann_whitney_steps(a, b):
+    values = pd.Series(list(a) + list(b))
+    ranks = values.rank(method="average")
+    n_a, n_b, N = len(a), len(b), len(values)
+    w_a = ranks[:n_a].sum()
+    u_a = w_a - n_a * (n_a + 1) / 2
+    ties = values.value_counts()
+    tie_term = (ties ** 3 - ties).sum() / (N * (N - 1))
+    sd_u = np.sqrt(n_a * n_b / 12 * ((N + 1) - tie_term))
+    mu_u = n_a * n_b / 2
+    z = (u_a - mu_u + 0.5 * np.sign(mu_u - u_a)) / sd_u
+    delta = (2 * u_a - n_a * n_b) / (n_a * n_b)
+    print(f"W_A = {w_a:g} · W_B = {ranks[n_a:].sum():g} · U_A = {u_a:g} · "
+          f"Z = {z:.2f} · p = {2 * stats.norm.cdf(-abs(z)):.4f} · δ = {delta:.2f}")
+
+mann_whitney_steps(layout_a, layout_b)
+mann_whitney_steps(days_a, days_b)
+```
+
+Realizando a soma dos postos, os cálculos para classificar as dominâncias e pontua-las (U), e , por fim, aproximando da normalidade.
+
+Em ambos os Z's, o resultado está abaixo da média, aproximandamente 2 desvios padrões
+
+```{python}
+# Mann-Whitney e Welch no teste de layout
+mw_layout = stats.mannwhitneyu(layout_a, layout_b, method="asymptotic")
+
+welch_layout = stats.ttest_ind(layout_a, layout_b, equal_var=False)
+
+report("Mann-Whitney", mw_layout, stat="U")
+report("t de Welch", welch_layout, stat="t")
+```
+
+O Mann-Whitney mostra que o layout A leva a cliques mais rápidos (p = 0,024). O Welch não detecta diferença (p = 0,34) porque o outlier de 14 s infla a média e a variância de A.
