@@ -439,3 +439,80 @@ report("t de Welch", welch_layout, stat="t")
 ```
 
 O Mann-Whitney mostra que o layout A leva a cliques mais rápidos (p = 0,024). O Welch não detecta diferença (p = 0,34) porque o outlier de 14 s infla a média e a variância de A.
+
+# Caso 2. Pearson e Spearman
+
+```{python}
+# Carrega a base de carros
+mtcars = pd.read_csv("../../../data/mtcars.csv"")
+```
+
+```{python}
+# Pearson nos valores, Spearman e Pearson calculado sobre os postos
+ranks_hp = mtcars["hp"].rank()
+ranks_mpg = mtcars["mpg"].rank()
+
+pearson_values = stats.pearsonr(mtcars["hp"], mtcars["mpg"])
+spearman = stats.spearmanr(mtcars["hp"], mtcars["mpg"])
+pearson_ranks = stats.pearsonr(ranks_hp, ranks_mpg)
+
+report("Pearson (valores)", pearson_values, stat="r")
+report("Spearman", spearman, stat="ρ")
+report("Pearson (postos)", pearson_ranks, stat="r")
+```
+
+O Pearson deu perto de -0,78 e o Spearman perto de -0,89, os dois com p menor que 0,001. Então carros mais potentes fazem menos milhas por galão. O Spearman saiu mais forte porque a relação é uma curva, e o Pearson só mede a parte em linha reta. O Pearson feito nos postos deu o mesmo valor do Spearman, ou seja, o Spearman é só o Pearson aplicado às posições.
+
+```{python}
+# Fórmula clássica de Spearman com as diferenças de postos
+d = ranks_hp - ranks_mpg
+n = len(mtcars)
+
+print(f"Σd² = {(d ** 2).sum()}")
+print(f"ρ pela fórmula = {1 - 6 * (d ** 2).sum() / (n * (n ** 2 - 1)):.3f}")
+```
+
+A fórmula clássica deu quase o mesmo valor do SciPy. A pequena diferença vem dos empates, que a fórmula não trata direito.
+
+```{python}
+# Dispersão dos valores e dos postos, com a reta de mínimos quadrados
+fig, axes = plt.subplots(1, 2, figsize=(12, 4.5))
+
+panels = [
+    (mtcars["hp"], mtcars["mpg"], "Potência (hp)", "Consumo (mpg)", "Pearson"),
+    (ranks_hp, ranks_mpg, "Posto da potência", "Posto do consumo", "Spearman"),
+]
+
+for ax, (x, y, xlabel, ylabel, name) in zip(axes, panels):
+    slope, intercept = np.polyfit(x, y, deg=1)
+    grid = np.linspace(x.min(), x.max(), 100)
+    ax.scatter(x, y, color="#1F4E79", alpha=.8)
+    ax.plot(grid, intercept + slope * grid, color="#DD8452", linewidth=2)
+    ax.set(xlabel=xlabel, ylabel=ylabel,
+           title=f"{name}: {stats.pearsonr(x, y).statistic:.2f}")
+
+plt.tight_layout()
+plt.show()
+```
+
+Nos valores originais, os pontos formam uma curva e a reta não acompanha bem. Nos postos, os pontos ficam mais alinhados. A relação é a mesma, só muda o que cada coeficiente mede.
+
+```{python}
+# Matrizes de Pearson e de Spearman entre todas as variáveis numéricas
+numeric = mtcars.drop(columns="model")
+mask = np.triu(np.ones((numeric.shape[1],) * 2, dtype=bool))
+
+fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+
+for ax, method in zip(axes, ["pearson", "spearman"]):
+    sns.heatmap(numeric.corr(method=method), mask=mask, ax=ax,
+                cmap="vlag", vmin=-1, vmax=1, center=0,
+                annot=True, fmt=".2f", annot_kws={"size": 8},
+                square=True, cbar_kws={"shrink": .7})
+    ax.set_title(method.capitalize())
+
+plt.tight_layout()
+plt.show()
+```
+
+As duas matrizes mostram padrões parecidos, e a diferença está na força das correlações. Quando o Spearman é bem maior que o Pearson, a relação deve ser curva ou ter outliers. O mapa serve para explorar, não para concluir.
