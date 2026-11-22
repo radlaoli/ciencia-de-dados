@@ -312,3 +312,55 @@ print(f"U_B = {w_b} − {minimum} = {w_b - minimum}")
 Somando os postos, obtemos W_A = 46,5 e W_B = 89,5, que juntos dão 136, a soma de todos os postos de 1 a 16.
 
 Subtraindo de cada soma o menor valor possível para um grupo de 8 pacientes (36), chegamos a U_A = 10,5 e U_B = 53,5, os mesmos valores encontrados na contagem dos duelos. Ou seja, a soma dos postos é outra maneira de alcançar o U, sem precisar comparar paciente por paciente.
+
+## O p-valor pela aproximação normal
+
+```{python}
+# Os quatro passos da aproximação normal
+mu_u = n_a * n_b / 2
+sd_no_ties = np.sqrt(n_a * n_b * (N + 1) / 12)
+
+ties = ranked["dias"].value_counts()
+tie_sum = (ties ** 3 - ties).sum()
+sd_u = np.sqrt(n_a * n_b / 12 * ((N + 1) - tie_sum / (N * (N - 1))))
+
+z = (u_a - mu_u + 0.5 * np.sign(mu_u - u_a)) / sd_u
+p = 2 * stats.norm.cdf(-abs(z))
+
+print(f"1. μ_U = {mu_u}")
+print(f"2. σ_U sem empates = {sd_no_ties:.2f}")
+print(f"3. Σ(t³ − t) = {tie_sum} · σ_U com empates = {sd_u:.2f}")
+print(f"4. Z = {z:.2f} · p = {p:.4f}")
+```
+
+```{python}
+# Curva normal de U sob H0, com as duas caudas do p-valor
+grid = np.linspace(0, n_a * n_b, 400)
+density = stats.norm.pdf(grid, mu_u, sd_u)
+mirror = n_a * n_b - u_a
+
+fig, ax = plt.subplots(figsize=(9, 4))
+ax.plot(grid, density, color="#1F4E79", linewidth=2)
+tails = (grid <= u_a + 0.5) | (grid >= mirror - 0.5)
+ax.fill_between(grid, density, where=tails, color="#DD8452", label=f"p = {p:.4f}")
+for value, label in [(u_a, "observado"), (mirror, "espelho")]:
+    ax.axvline(value, color="#DD8452", linestyle="--")
+    ax.text(value, density.max() * 0.6, label, ha="center", color="#DD8452")
+ax.axvline(mu_u, color="#333333", linestyle=":")
+ax.set(xlabel="U_A", ylabel="Densidade", xticks=[0, 10.5, 16, 32, 48, 53.5, 64])
+z_axis = ax.secondary_xaxis(-0.22, functions=(lambda u: (u - mu_u) / sd_u,
+                                              lambda v: v * sd_u + mu_u))
+z_axis.set_xlabel("Z correspondente")
+ax.legend()
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
+# Mann-Whitney pela aproximação normal no SciPy
+mw_uti = stats.mannwhitneyu(group_a, group_b, method="asymptotic")
+
+report("Mann-Whitney", mw_uti, stat="U")
+```
+
+Usando o SciPy confirma o cálculo anterior, U = 10,5 e p = 0,027. O resultado contrasta com o do teste t, que deu p = 0,468 e não encontrou diferença. A diferença vem do paciente de 120 dias, no teste t, ele inflava a média e o desvio-padrão de A e escondia o efeito, no Mann-Whitney, ele conta só como mais um posto, e o padrão da maioria dos pacientes aparece.
