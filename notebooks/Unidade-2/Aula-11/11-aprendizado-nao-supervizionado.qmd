@@ -1,0 +1,40 @@
+---
+title: "Aula 11 - Aprendizado Não Supervisionado"
+lang: pt
+---
+
+# Preparando o Ambiente
+```{python}
+# Importa as bibliotecas e define o tema dos gráficos
+import json
+
+import numpy as np
+import pandas as pd
+import seaborn as sns
+
+import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
+
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.feature_selection import f_classif
+from sklearn.metrics import (
+    adjusted_rand_score,
+    pairwise_distances,
+    silhouette_score,
+)
+from sklearn.model_selection import (
+    StratifiedKFold,
+    cross_val_score,
+)
+from sklearn.preprocessing import StandardScaler
+from sklearn.tree import (
+    DecisionTreeClassifier,
+    plot_tree,
+)
+
+from umap import UMAP
+
+sns.set_theme(style="whitegrid", palette="colorblind")
+```
