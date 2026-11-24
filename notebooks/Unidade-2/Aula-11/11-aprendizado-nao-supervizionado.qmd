@@ -38,3 +38,56 @@ from umap import UMAP
 
 sns.set_theme(style="whitegrid", palette="colorblind")
 ```
+
+## Do arquivo bruto à matriz da aula
+
+```{python}
+# Carrega a matriz de expressão: pacientes nas linhas, genes nas colunas
+expr = pd.read_parquet("../../../data/brca_hvgs_log2.parquet")
+
+expr.iloc[:5, :8]
+```
+
+Apenas a visualização das 5 primeiras linhas do df
+
+```{python}
+expr.shape
+```
+
+```{python}
+# Verificações de qualidade: ausentes, repetidos, constantes e faixa de valores
+quality_checks = pd.Series(
+    {
+        "valores ausentes": expr.isna().sum().sum(),
+        "pacientes repetidos": expr.index.duplicated().sum(),
+        "genes constantes": (expr.var() == 0).sum(),
+        "menor valor": expr.min().min(),
+        "maior valor": expr.max().max(),
+    },
+    name="resultado",
+    dtype="object",
+)
+
+quality_checks
+```
+
+Com o total de 1095 pacientes e 505 genes, e não há nenhum dos problemas de qualidade que poderíamos ter (valores ausentes, pacientes repetidos ou genes constantes). Os valores de expressão vão de 0 a 17,931, ou seja, 0 indica que o gene está praticamente desligado no paciente, enquanto valores próximos de 18 indicam um gene muito ativo. Como os dados estão em escala log2, então essa faixa na realidade corresponde a uma diferença enorme, da ausência total até uma presença muito alta.
+
+
+```{python}
+# Dicionário de assinaturas: perfil -> genes marcadores
+with open("../../../data/dicionario_marcadores.json") as file:
+    markers = json.load(file)
+
+markers_table = (
+    pd.Series(markers)
+    .map(", ".join)
+    .rename_axis("perfil")
+    .rename("genes")
+    .to_frame()
+)
+
+markers_table
+```
+
+Aqui vemos os genes já marcado com os perfis correspondentes, sendo o Hormonal e o Basal os detentores da maior parte deles. Para a análise, se um grupo de tumores tem genes de um determinado perfil com uma expressão muito forte, ele será etiquetado com esse perfil.
